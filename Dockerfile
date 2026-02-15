@@ -40,8 +40,10 @@ COPY --from=builder /app/shared/dist shared/dist
 COPY --from=builder /app/server/dist server/dist
 COPY --from=builder /app/client/dist client/dist
 
-# Create data directory
-RUN mkdir -p /app/data
+# Create non-root user and data directory
+RUN apk add --no-cache su-exec && \
+    addgroup -S appgroup && adduser -S appuser -G appgroup && \
+    mkdir -p /app/data && chown -R appuser:appgroup /app/data
 
 ENV NODE_ENV=production
 ENV DATABASE_PATH=/app/data/readingcircle.db
@@ -51,4 +53,5 @@ EXPOSE 3000
 
 VOLUME ["/app/data"]
 
-CMD ["node", "server/dist/index.js"]
+# Fix permissions on mounted volumes, then drop to non-root
+CMD chown -R appuser:appgroup /app/data && exec su-exec appuser node server/dist/index.js

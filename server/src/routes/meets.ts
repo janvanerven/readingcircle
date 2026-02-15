@@ -5,6 +5,7 @@ import { db, schema } from '../db';
 import { eq, and, sql } from 'drizzle-orm';
 import { AppError } from '../middleware/error';
 import { VOTING_POINTS_TOTAL } from '@readingcircle/shared';
+import { isValidStringField, isValidAvailability } from '../utils/validation';
 
 export const meetRoutes = Router();
 
@@ -211,6 +212,9 @@ meetRoutes.get('/:id', (req: Request, res: Response, next: NextFunction) => {
 meetRoutes.post('/', (req: Request, res: Response, next: NextFunction) => {
   try {
     const { location, description } = req.body;
+    if (location && location.length > 500) throw new AppError(400, 'Location must be under 500 characters');
+    if (description && description.length > 2000) throw new AppError(400, 'Description must be under 2000 characters');
+
     const id = uuid();
     const now = new Date().toISOString();
 
@@ -483,6 +487,19 @@ meetRoutes.post('/:id/votes', (req: Request, res: Response, next: NextFunction) 
     const { votes } = req.body as { votes: { candidateId: string; points: number }[] };
     if (!votes || !Array.isArray(votes)) throw new AppError(400, 'votes array is required');
 
+    // Validate each vote has a non-negative integer for points
+    for (const vote of votes) {
+      if (!Number.isInteger(vote.points) || vote.points < 0) {
+        throw new AppError(400, 'Each vote must have a non-negative integer for points');
+      }
+    }
+
+    // Check for duplicate candidateIds
+    const candidateIds = new Set(votes.map(v => v.candidateId));
+    if (candidateIds.size !== votes.length) {
+      throw new AppError(400, 'Duplicate candidate votes are not allowed');
+    }
+
     const totalPoints = votes.reduce((sum, v) => sum + v.points, 0);
     if (totalPoints !== VOTING_POINTS_TOTAL) {
       throw new AppError(400, `You must distribute exactly ${VOTING_POINTS_TOTAL} points (you distributed ${totalPoints})`);
@@ -648,6 +665,12 @@ meetRoutes.put('/:id/date-votes', (req: Request, res: Response, next: NextFuncti
 
     const { votes } = req.body as { votes: { dateOptionId: string; availability: string }[] };
     if (!votes || !Array.isArray(votes)) throw new AppError(400, 'votes array is required');
+
+    for (const vote of votes) {
+      if (!isValidAvailability(vote.availability)) {
+        throw new AppError(400, 'Invalid availability value. Must be: available, not_available, maybe, or no_response');
+      }
+    }
 
     for (const vote of votes) {
       const existing = db.select().from(schema.meetDateVotes)

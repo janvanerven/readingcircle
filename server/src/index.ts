@@ -1,7 +1,9 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import { rateLimit } from 'express-rate-limit';
 import path from 'path';
 import { seedAdmin } from './services/auth';
 import { authRoutes } from './routes/auth';
@@ -15,12 +17,24 @@ import { initializeDatabase } from './db/init';
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
+// Security headers
+app.use(helmet());
+
+// Global rate limit
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' },
+}));
+
 // Middleware
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' ? false : 'http://localhost:5173',
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 app.use(cookieParser());
 
 // API Routes

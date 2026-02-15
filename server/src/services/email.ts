@@ -1,5 +1,14 @@
 import nodemailer from 'nodemailer';
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 let transporter: nodemailer.Transporter | null = null;
 
 function getTransporter(): nodemailer.Transporter {
@@ -29,13 +38,14 @@ const FROM = process.env.SMTP_FROM || 'noreply@readingcircle.local';
 
 export async function sendInvitationEmail(email: string, token: string, inviterName: string): Promise<void> {
   const joinUrl = `${APP_URL}/join/${token}`;
+  const safeInviterName = escapeHtml(inviterName);
 
   const html = `
     <div style="font-family: 'Georgia', serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
       <h1 style="color: #6B2737; text-align: center; font-size: 28px;">Reading Circle</h1>
       <div style="background: #FFF8F0; border-radius: 12px; padding: 30px; border: 1px solid #E8D5C4;">
         <p style="color: #4A3728; font-size: 16px; line-height: 1.6;">
-          Hello! <strong>${inviterName}</strong> has invited you to join their Reading Circle.
+          Hello! <strong>${safeInviterName}</strong> has invited you to join their Reading Circle.
         </p>
         <p style="color: #4A3728; font-size: 16px; line-height: 1.6;">
           Click the button below to create your account and start exploring books together.
@@ -56,15 +66,15 @@ export async function sendInvitationEmail(email: string, token: string, inviterN
   const mailOptions = {
     from: FROM,
     to: email,
-    subject: `${inviterName} invited you to Reading Circle`,
+    subject: `${safeInviterName} invited you to Reading Circle`,
     html,
   };
 
   const transport = getTransporter();
   const result = await transport.sendMail(mailOptions);
 
-  // Log to console if using JSON transport (no SMTP configured)
-  if (!process.env.SMTP_HOST) {
+  // Log to console if using JSON transport (no SMTP configured) — only in development
+  if (!process.env.SMTP_HOST && process.env.NODE_ENV !== 'production') {
     const parsed = JSON.parse(result.message);
     console.log('Email would be sent:', { to: parsed.to, subject: parsed.subject });
     console.log('Join URL:', joinUrl);

@@ -1,9 +1,18 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response, NextFunction, CookieOptions } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { login, refreshAccessToken, setupAccount, registerWithInvitation, validateInvitation } from '../services/auth';
 import { authenticate } from '../middleware/auth';
+import { IS_PRODUCTION } from '../config';
 
 export const authRoutes = Router();
+
+const REFRESH_COOKIE_OPTIONS: CookieOptions = {
+  httpOnly: true,
+  sameSite: 'strict',
+  secure: IS_PRODUCTION,
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  path: '/api/auth/refresh',
+};
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -19,12 +28,7 @@ authRoutes.post('/login', authLimiter, async (req: Request, res: Response, next:
       return;
     }
     const result = await login(username, password);
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/api/auth/refresh',
-    });
+    res.cookie('refreshToken', result.refreshToken, REFRESH_COOKIE_OPTIONS);
     res.json({ accessToken: result.accessToken, user: result.user });
   } catch (err) {
     next(err);
@@ -39,12 +43,7 @@ authRoutes.post('/refresh', async (req: Request, res: Response, next: NextFuncti
       return;
     }
     const result = await refreshAccessToken(token);
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/api/auth/refresh',
-    });
+    res.cookie('refreshToken', result.refreshToken, REFRESH_COOKIE_OPTIONS);
     res.json({ accessToken: result.accessToken, user: result.user });
   } catch (err) {
     next(err);
@@ -63,12 +62,7 @@ authRoutes.post('/setup', authenticate, async (req: Request, res: Response, next
       return;
     }
     const result = await setupAccount(req.user.id, username, password, email);
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/api/auth/refresh',
-    });
+    res.cookie('refreshToken', result.refreshToken, REFRESH_COOKIE_OPTIONS);
     res.json({ accessToken: result.accessToken, user: result.user });
   } catch (err) {
     next(err);
@@ -92,12 +86,7 @@ authRoutes.post('/register', authLimiter, async (req: Request, res: Response, ne
       return;
     }
     const result = await registerWithInvitation(token, username, password);
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/api/auth/refresh',
-    });
+    res.cookie('refreshToken', result.refreshToken, REFRESH_COOKIE_OPTIONS);
     res.json({ accessToken: result.accessToken, user: result.user });
   } catch (err) {
     next(err);

@@ -4,6 +4,7 @@ import { authenticate, requireSetupComplete } from '../middleware/auth';
 import { db, schema } from '../db';
 import { eq, ne, and, sql } from 'drizzle-orm';
 import { AppError } from '../middleware/error';
+import { isValidStringField } from '../utils/validation';
 
 export const bookRoutes = Router();
 
@@ -159,6 +160,15 @@ bookRoutes.post('/', (req: Request, res: Response, next: NextFunction) => {
     if (!title || !author) {
       throw new AppError(400, 'Title and author are required');
     }
+    if (!isValidStringField(title, 500)) {
+      throw new AppError(400, 'Title must be between 1 and 500 characters');
+    }
+    if (!isValidStringField(author, 200)) {
+      throw new AppError(400, 'Author must be between 1 and 200 characters');
+    }
+    if (introduction && introduction.length > 5000) {
+      throw new AppError(400, 'Introduction must be under 5000 characters');
+    }
 
     const now = new Date().toISOString();
     const id = uuid();
@@ -272,6 +282,7 @@ bookRoutes.post('/:id/comments', (req: Request, res: Response, next: NextFunctio
 
     const { content } = req.body;
     if (!content?.trim()) throw new AppError(400, 'Comment content is required');
+    if (content.length > 2000) throw new AppError(400, 'Comment must be under 2000 characters');
 
     const id = uuid();
     const now = new Date().toISOString();

@@ -3,6 +3,7 @@ import { authenticate, requireAdmin, requireSetupComplete } from '../middleware/
 import { createInvitation } from '../services/auth';
 import { db, schema } from '../db';
 import { eq } from 'drizzle-orm';
+import { isValidEmail } from '../utils/validation';
 
 export const invitationRoutes = Router();
 
@@ -13,8 +14,8 @@ invitationRoutes.use(requireSetupComplete);
 invitationRoutes.post('/', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email } = req.body;
-    if (!email) {
-      res.status(400).json({ error: 'Email is required' });
+    if (!email || !isValidEmail(email)) {
+      res.status(400).json({ error: 'A valid email address is required' });
       return;
     }
     const result = await createInvitation(email, req.user!.id);

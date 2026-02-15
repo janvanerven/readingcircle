@@ -5,6 +5,7 @@ import { hashPassword, verifyPassword, validatePassword } from '../utils/passwor
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken, generateMagicLinkToken } from '../utils/tokens';
 import { AppError } from '../middleware/error';
 import { sendInvitationEmail } from './email';
+import { isValidUsername, isValidEmail } from '../utils/validation';
 
 export async function seedAdmin(): Promise<void> {
   const username = process.env.ADMIN_USERNAME;
@@ -87,6 +88,12 @@ export async function refreshAccessToken(refreshToken: string) {
 }
 
 export async function setupAccount(userId: string, username: string, password: string, email: string) {
+  if (!isValidUsername(username)) {
+    throw new AppError(400, 'Username must be between 2 and 30 characters');
+  }
+  if (!isValidEmail(email)) {
+    throw new AppError(400, 'A valid email address is required');
+  }
   const validationError = validatePassword(password);
   if (validationError) {
     throw new AppError(400, validationError);
@@ -176,6 +183,9 @@ export async function registerWithInvitation(token: string, username: string, pa
   if (invitation.usedAt) throw new AppError(400, 'Invitation has already been used');
   if (new Date(invitation.expiresAt) < new Date()) throw new AppError(400, 'Invitation has expired');
 
+  if (!isValidUsername(username)) {
+    throw new AppError(400, 'Username must be between 2 and 30 characters');
+  }
   const validationError = validatePassword(password);
   if (validationError) throw new AppError(400, validationError);
 
