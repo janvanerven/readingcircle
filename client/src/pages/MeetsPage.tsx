@@ -70,7 +70,15 @@ export function MeetsPage() {
   const groupedMeets = phaseOrder
     .map(phase => ({
       phase,
-      meets: meets.filter(m => m.phase === phase),
+      meets: meets
+        .filter(m => m.phase === phase)
+        .sort((a, b) => {
+          // Sort by selectedDate descending (newest first), nulls last
+          if (a.selectedDate && b.selectedDate) return b.selectedDate.localeCompare(a.selectedDate);
+          if (a.selectedDate) return -1;
+          if (b.selectedDate) return 1;
+          return b.createdAt.localeCompare(a.createdAt);
+        }),
     }))
     .filter(g => g.meets.length > 0);
 

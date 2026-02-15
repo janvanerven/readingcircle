@@ -128,6 +128,16 @@ export interface AggregatedRankingResponse {
   appearances: number;
 }
 
+export interface LatestTop5Response {
+  meetId: string;
+  meetLabel: string;
+  userTop5s: {
+    userId: string;
+    username: string;
+    entries: { bookId: string; bookTitle: string; bookAuthor: string; rank: number }[];
+  }[];
+}
+
 export interface InvitationResponse {
   id: string;
   email: string;

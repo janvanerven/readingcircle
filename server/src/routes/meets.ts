@@ -771,6 +771,76 @@ meetRoutes.post('/:id/top5', (req: Request, res: Response, next: NextFunction) =
   }
 });
 
+// Get latest Top 5 per member (from the most recent meet that has top5 entries)
+meetRoutes.get('/top5/latest', (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Find the most recent meet (by createdAt) that has top5 entries
+    const latestMeetWithTop5 = db
+      .select({
+        meetId: schema.meetTop5.meetId,
+        meetCreatedAt: schema.meets.createdAt,
+        hostUsername: schema.users.username,
+        selectedBookTitle: schema.books.title,
+      })
+      .from(schema.meetTop5)
+      .leftJoin(schema.meets, eq(schema.meetTop5.meetId, schema.meets.id))
+      .leftJoin(schema.users, eq(schema.meets.hostId, schema.users.id))
+      .leftJoin(schema.books, eq(schema.meets.selectedBookId, schema.books.id))
+      .orderBy(sql`${schema.meets.createdAt} DESC`)
+      .limit(1)
+      .get();
+
+    if (!latestMeetWithTop5) {
+      res.json(null);
+      return;
+    }
+
+    const meetLabel = getMeetLabel(latestMeetWithTop5.hostUsername!, latestMeetWithTop5.selectedBookTitle);
+
+    const entries = db
+      .select({
+        userId: schema.meetTop5.userId,
+        username: schema.users.username,
+        bookId: schema.meetTop5.bookId,
+        bookTitle: schema.books.title,
+        bookAuthor: schema.books.author,
+        rank: schema.meetTop5.rank,
+      })
+      .from(schema.meetTop5)
+      .leftJoin(schema.users, eq(schema.meetTop5.userId, schema.users.id))
+      .leftJoin(schema.books, eq(schema.meetTop5.bookId, schema.books.id))
+      .where(eq(schema.meetTop5.meetId, latestMeetWithTop5.meetId))
+      .all();
+
+    // Group by user
+    const userMap = new Map<string, { username: string; entries: { bookId: string; bookTitle: string; bookAuthor: string; rank: number }[] }>();
+    for (const e of entries) {
+      const existing = userMap.get(e.userId);
+      const entry = { bookId: e.bookId, bookTitle: e.bookTitle!, bookAuthor: e.bookAuthor!, rank: e.rank };
+      if (existing) {
+        existing.entries.push(entry);
+      } else {
+        userMap.set(e.userId, { username: e.username!, entries: [entry] });
+      }
+    }
+
+    // Sort entries by rank within each user
+    const userTop5s = Array.from(userMap.entries()).map(([userId, data]) => ({
+      userId,
+      username: data.username,
+      entries: data.entries.sort((a, b) => a.rank - b.rank),
+    }));
+
+    res.json({
+      meetId: latestMeetWithTop5.meetId,
+      meetLabel,
+      userTop5s,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Aggregated ranking
 meetRoutes.get('/top5/aggregate', (_req: Request, res: Response, next: NextFunction) => {
   try {

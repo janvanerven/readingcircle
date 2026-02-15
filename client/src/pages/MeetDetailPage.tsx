@@ -85,8 +85,8 @@ export function MeetDetailPage() {
         <CandidatesSection meet={meet} books={books} isHostOrAdmin={!!isHostOrAdmin} onUpdate={loadMeet} />
       )}
 
-      {/* Date options: shown in draft (for adding) and voting (for polling), hidden if date already selected */}
-      {(meet.phase === 'draft' || meet.phase === 'voting') && !meet.selectedDate && (
+      {/* Date options: shown in draft and voting */}
+      {(meet.phase === 'draft' || meet.phase === 'voting') && (
         <AvailabilitySection meet={meet} onUpdate={loadMeet} isHostOrAdmin={!!isHostOrAdmin} />
       )}
 
@@ -185,6 +185,8 @@ function PhaseControls({ meet, onUpdate, navigate }: { meet: MeetDetailResponse;
   );
 }
 
+type BookFilterValue = 'unread' | 'read' | 'all';
+
 function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
   meet: MeetDetailResponse; books: BookResponse[]; isHostOrAdmin: boolean; onUpdate: () => void;
 }) {
@@ -192,6 +194,7 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
   const [selectedBookId, setSelectedBookId] = useState('');
   const [motivation, setMotivation] = useState('');
   const [adding, setAdding] = useState(false);
+  const [bookFilter, setBookFilter] = useState<BookFilterValue>('unread');
 
   const addCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,7 +238,10 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
   };
 
   const candidateBookIds = new Set(meet.candidates.map(c => c.bookId));
-  const availableBooks = books.filter(b => !candidateBookIds.has(b.id) && b.id !== meet.selectedBookId);
+  const availableBooks = books
+    .filter(b => !candidateBookIds.has(b.id) && b.id !== meet.selectedBookId)
+    .filter(b => bookFilter === 'all' ? true : bookFilter === 'read' ? b.isRead : !b.isRead)
+    .sort((a, b) => a.title.localeCompare(b.title));
 
   // Determine if selection is allowed
   const canSelectInDraft = meet.phase === 'draft' && meet.candidates.length === 1;
@@ -272,11 +278,19 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
 
       {showAddCandidate && (
         <form onSubmit={addCandidate} className="bg-cream rounded-lg p-4 mb-4 space-y-3">
-          <select value={selectedBookId} onChange={e => setSelectedBookId(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-white text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 transition">
-            <option value="">Select a book...</option>
-            {availableBooks.map(b => <option key={b.id} value={b.id}>{b.title} — {b.author}</option>)}
-          </select>
+          <div className="flex gap-2">
+            <select value={selectedBookId} onChange={e => setSelectedBookId(e.target.value)}
+              className="flex-1 px-4 py-2.5 rounded-lg border border-warm-gray bg-white text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 transition">
+              <option value="">Select a book...</option>
+              {availableBooks.map(b => <option key={b.id} value={b.id}>{b.title} — {b.author}</option>)}
+            </select>
+            <select value={bookFilter} onChange={e => { setBookFilter(e.target.value as BookFilterValue); setSelectedBookId(''); }}
+              className="px-3 py-2.5 rounded-lg border border-warm-gray bg-white text-brown text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30">
+              <option value="unread">Unread</option>
+              <option value="read">Read</option>
+              <option value="all">All Books</option>
+            </select>
+          </div>
           <input type="text" value={motivation} onChange={e => setMotivation(e.target.value)}
             placeholder="Motivation (optional)"
             className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-white text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 transition" />
@@ -311,7 +325,9 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-brown-light">by {c.bookAuthor}</p>
+                  <p className="text-sm text-brown-light">by {c.bookAuthor}
+                    {(() => { const book = books.find(b => b.id === c.bookId); return book && book.candidateCount > 1 ? ` — ${book.candidateCount}x nominated` : ''; })()}
+                  </p>
                   {c.motivation && <p className="text-sm text-brown-light mt-1 italic">"{c.motivation}"</p>}
                   {c.points !== undefined && (
                     <p className="text-sm font-medium text-burgundy mt-1">{c.points} points</p>
@@ -328,7 +344,7 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
                     <button onClick={() => selectBook(c.bookId)} title="Select this book"
                       className="p-1.5 text-sage hover:bg-sage/20 rounded-lg"><Check className="w-4 h-4" /></button>
                   )}
-                  {isHostOrAdmin && meet.phase === 'draft' && (
+                  {isHostOrAdmin && meet.phase === 'draft' && c.bookId !== meet.selectedBookId && (
                     <button onClick={() => removeCandidate(c.id)} title="Remove candidate"
                       className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X className="w-4 h-4" /></button>
                   )}
@@ -548,7 +564,7 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
           <Clock className="w-5 h-5 text-burgundy" />
           {isDraft ? 'Date Options' : 'Availability Poll'}
         </h2>
-        {isHostOrAdmin && isDraft && (
+        {isHostOrAdmin && isDraft && !meet.selectedDate && (
           <button onClick={() => {
             if (!showAddDate) {
               // Set default date: last date option + 1 day, or today at 19:00
@@ -774,6 +790,7 @@ function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: (
             <option value="">Add a book to your ranking...</option>
             {eligibleBooks
               .filter(b => !entries.some(en => en.bookId === b.id))
+              .sort((a, b) => a.title.localeCompare(b.title))
               .map(b => (
                 <option key={b.id} value={b.id}>{b.title} — {b.author}</option>
               ))}
