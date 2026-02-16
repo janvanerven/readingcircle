@@ -1,29 +1,35 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { v4 as uuid } from 'uuid';
-import { authenticate, requireSetupComplete } from '../middleware/auth';
+import { authenticate, requireAdmin, requireSetupComplete } from '../middleware/auth';
 import { db, schema } from '../db';
 import { eq, ne, and, sql } from 'drizzle-orm';
 import { AppError } from '../middleware/error';
-import { isValidStringField } from '../utils/validation';
+import { isValidStringField, isValidBookType } from '../utils/validation';
 
 export const bookRoutes = Router();
 
 bookRoutes.use(authenticate);
 bookRoutes.use(requireSetupComplete);
 
+const bookSelectFields = {
+  id: schema.books.id,
+  title: schema.books.title,
+  author: schema.books.author,
+  year: schema.books.year,
+  country: schema.books.country,
+  originalLanguage: schema.books.originalLanguage,
+  type: schema.books.type,
+  introduction: schema.books.introduction,
+  addedBy: schema.books.addedBy,
+  addedByUsername: schema.users.username,
+  createdAt: schema.books.createdAt,
+  updatedAt: schema.books.updatedAt,
+};
+
 // List all books
 bookRoutes.get('/', (_req: Request, res: Response) => {
   const books = db
-    .select({
-      id: schema.books.id,
-      title: schema.books.title,
-      author: schema.books.author,
-      introduction: schema.books.introduction,
-      addedBy: schema.books.addedBy,
-      addedByUsername: schema.users.username,
-      createdAt: schema.books.createdAt,
-      updatedAt: schema.books.updatedAt,
-    })
+    .select(bookSelectFields)
     .from(schema.books)
     .leftJoin(schema.users, eq(schema.books.addedBy, schema.users.id))
     .all();
@@ -61,16 +67,7 @@ bookRoutes.get('/', (_req: Request, res: Response) => {
 bookRoutes.get('/:id', (req: Request, res: Response, next: NextFunction) => {
   try {
     const book = db
-      .select({
-        id: schema.books.id,
-        title: schema.books.title,
-        author: schema.books.author,
-        introduction: schema.books.introduction,
-        addedBy: schema.books.addedBy,
-        addedByUsername: schema.users.username,
-        createdAt: schema.books.createdAt,
-        updatedAt: schema.books.updatedAt,
-      })
+      .select(bookSelectFields)
       .from(schema.books)
       .leftJoin(schema.users, eq(schema.books.addedBy, schema.users.id))
       .where(eq(schema.books.id, req.params.id as string))
@@ -153,22 +150,40 @@ bookRoutes.get('/:id', (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
+function validateBookFields(body: Record<string, string | undefined>) {
+  const { title, author, year, country, originalLanguage, type, introduction } = body;
+
+  if (title !== undefined && !isValidStringField(title, 500)) {
+    throw new AppError(400, 'Title must be between 1 and 500 characters');
+  }
+  if (author !== undefined && !isValidStringField(author, 200)) {
+    throw new AppError(400, 'Author must be between 1 and 200 characters');
+  }
+  if (year && year.length > 30) {
+    throw new AppError(400, 'Year must be under 30 characters');
+  }
+  if (country && country.length > 50) {
+    throw new AppError(400, 'Country must be under 50 characters');
+  }
+  if (originalLanguage && originalLanguage.length > 50) {
+    throw new AppError(400, 'Original language must be under 50 characters');
+  }
+  if (type && !isValidBookType(type)) {
+    throw new AppError(400, 'Invalid book type');
+  }
+  if (introduction && introduction.length > 5000) {
+    throw new AppError(400, 'Introduction must be under 5000 characters');
+  }
+}
+
 // Create a book
 bookRoutes.post('/', (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { title, author, introduction } = req.body;
+    const { title, author, year, country, originalLanguage, type, introduction } = req.body;
     if (!title || !author) {
       throw new AppError(400, 'Title and author are required');
     }
-    if (!isValidStringField(title, 500)) {
-      throw new AppError(400, 'Title must be between 1 and 500 characters');
-    }
-    if (!isValidStringField(author, 200)) {
-      throw new AppError(400, 'Author must be between 1 and 200 characters');
-    }
-    if (introduction && introduction.length > 5000) {
-      throw new AppError(400, 'Introduction must be under 5000 characters');
-    }
+    validateBookFields(req.body);
 
     const now = new Date().toISOString();
     const id = uuid();
@@ -177,6 +192,10 @@ bookRoutes.post('/', (req: Request, res: Response, next: NextFunction) => {
       id,
       title,
       author,
+      year: year || null,
+      country: country || null,
+      originalLanguage: originalLanguage || null,
+      type: type || null,
       introduction: introduction || null,
       addedBy: req.user!.id,
       createdAt: now,
@@ -184,16 +203,7 @@ bookRoutes.post('/', (req: Request, res: Response, next: NextFunction) => {
     }).run();
 
     const book = db
-      .select({
-        id: schema.books.id,
-        title: schema.books.title,
-        author: schema.books.author,
-        introduction: schema.books.introduction,
-        addedBy: schema.books.addedBy,
-        addedByUsername: schema.users.username,
-        createdAt: schema.books.createdAt,
-        updatedAt: schema.books.updatedAt,
-      })
+      .select(bookSelectFields)
       .from(schema.books)
       .leftJoin(schema.users, eq(schema.books.addedBy, schema.users.id))
       .where(eq(schema.books.id, id))
@@ -215,13 +225,18 @@ bookRoutes.put('/:id', (req: Request, res: Response, next: NextFunction) => {
       throw new AppError(403, 'Only the person who added this book or an admin can edit it');
     }
 
-    const { title, author, introduction } = req.body;
+    const { title, author, year, country, originalLanguage, type, introduction } = req.body;
+    validateBookFields(req.body);
     const now = new Date().toISOString();
 
     db.update(schema.books)
       .set({
         ...(title !== undefined && { title }),
         ...(author !== undefined && { author }),
+        ...(year !== undefined && { year: year || null }),
+        ...(country !== undefined && { country: country || null }),
+        ...(originalLanguage !== undefined && { originalLanguage: originalLanguage || null }),
+        ...(type !== undefined && { type: type || null }),
         ...(introduction !== undefined && { introduction }),
         updatedAt: now,
       })
@@ -303,6 +318,52 @@ bookRoutes.post('/:id/comments', (req: Request, res: Response, next: NextFunctio
       content: content.trim(),
       createdAt: now,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Bulk import books (admin only)
+bookRoutes.post('/import', requireAdmin, (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { books: rows } = req.body as { books: Record<string, string>[] };
+    if (!rows || !Array.isArray(rows)) {
+      throw new AppError(400, 'books array is required');
+    }
+
+    const now = new Date().toISOString();
+    let imported = 0;
+    const errors: { row: number; error: string }[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      try {
+        if (!row.title?.trim() || !row.author?.trim()) {
+          errors.push({ row: i + 1, error: 'Title and author are required' });
+          continue;
+        }
+        validateBookFields(row);
+
+        db.insert(schema.books).values({
+          id: uuid(),
+          title: row.title.trim(),
+          author: row.author.trim(),
+          year: row.year?.trim() || null,
+          country: row.country?.trim() || null,
+          originalLanguage: row.originalLanguage?.trim() || null,
+          type: row.type?.trim() || null,
+          introduction: row.introduction?.trim() || null,
+          addedBy: req.user!.id,
+          createdAt: now,
+          updatedAt: now,
+        }).run();
+        imported++;
+      } catch (err) {
+        errors.push({ row: i + 1, error: err instanceof AppError ? err.message : 'Unknown error' });
+      }
+    }
+
+    res.json({ imported, errors });
   } catch (err) {
     next(err);
   }

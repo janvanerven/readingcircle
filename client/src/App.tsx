@@ -10,6 +10,7 @@ import { BookDetailPage } from '@/pages/BookDetailPage';
 import { MeetsPage } from '@/pages/MeetsPage';
 import { MeetDetailPage } from '@/pages/MeetDetailPage';
 import { MembersPage } from '@/pages/MembersPage';
+import { AdminPage } from '@/pages/AdminPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="/meets" element={<MeetsPage />} />
         <Route path="/meets/:id" element={<MeetDetailPage />} />
         <Route path="/members" element={<MembersPage />} />
+        <Route path="/admin" element={<AdminPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

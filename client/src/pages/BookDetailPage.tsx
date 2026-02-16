@@ -5,6 +5,7 @@ import { api, ApiError } from '@/lib/api';
 import { BookOpen, ArrowLeft, MessageSquare, Calendar, Pencil, Trash2, X } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import type { BookDetailResponse } from '@readingcircle/shared';
+import { BOOK_TYPES } from '@readingcircle/shared';
 
 export function BookDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -17,7 +18,7 @@ export function BookDetailPage() {
 
   // Edit state
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ title: '', author: '', introduction: '' });
+  const [editForm, setEditForm] = useState({ title: '', author: '', introduction: '', year: '', country: '', originalLanguage: '', type: '' });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
 
@@ -46,7 +47,7 @@ export function BookDetailPage() {
 
   const startEditing = () => {
     if (!book) return;
-    setEditForm({ title: book.title, author: book.author, introduction: book.introduction || '' });
+    setEditForm({ title: book.title, author: book.author, introduction: book.introduction || '', year: book.year || '', country: book.country || '', originalLanguage: book.originalLanguage || '', type: book.type || '' });
     setEditError('');
     setEditing(true);
   };
@@ -164,6 +165,50 @@ export function BookDetailPage() {
                 />
               </div>
             </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-brown mb-1">Year</label>
+                <input
+                  type="text"
+                  value={editForm.year}
+                  onChange={e => setEditForm({ ...editForm, year: e.target.value })}
+                  maxLength={30}
+                  placeholder="e.g. 1984"
+                  className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-brown mb-1">Country</label>
+                <input
+                  type="text"
+                  value={editForm.country}
+                  onChange={e => setEditForm({ ...editForm, country: e.target.value })}
+                  maxLength={50}
+                  className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-brown mb-1">Original Language</label>
+                <input
+                  type="text"
+                  value={editForm.originalLanguage}
+                  onChange={e => setEditForm({ ...editForm, originalLanguage: e.target.value })}
+                  maxLength={50}
+                  className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-brown mb-1">Type</label>
+                <select
+                  value={editForm.type}
+                  onChange={e => setEditForm({ ...editForm, type: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition"
+                >
+                  <option value="">--</option>
+                  {BOOK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
             <div>
               <label className="block text-sm font-medium text-brown mb-1">Introduction</label>
               <textarea
@@ -199,6 +244,14 @@ export function BookDetailPage() {
               <div className="flex-1 min-w-0">
                 <h1 className="text-2xl sm:text-3xl font-serif font-bold text-brown">{book.title}</h1>
                 <p className="text-lg text-brown-light mt-1">by {book.author}</p>
+                {(book.year || book.country || book.originalLanguage || book.type) && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {book.year && <span className="text-xs text-brown-light bg-warm-gray-light px-2 py-0.5 rounded">{book.year}</span>}
+                    {book.country && <span className="text-xs text-brown-light bg-warm-gray-light px-2 py-0.5 rounded">{book.country}</span>}
+                    {book.originalLanguage && <span className="text-xs text-brown-light bg-warm-gray-light px-2 py-0.5 rounded">{book.originalLanguage}</span>}
+                    {book.type && <span className="text-xs text-burgundy bg-burgundy/10 px-2 py-0.5 rounded">{book.type}</span>}
+                  </div>
+                )}
                 <p className="text-sm text-brown-lighter mt-2">Added by {book.addedByUsername} on {formatDate(book.createdAt)}</p>
               </div>
               {canEditOrDelete && (

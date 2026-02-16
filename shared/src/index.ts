@@ -13,6 +13,10 @@ export interface BookResponse {
   id: string;
   title: string;
   author: string;
+  year: string | null;
+  country: string | null;
+  originalLanguage: string | null;
+  type: string | null;
   introduction: string | null;
   addedBy: string;
   addedByUsername: string;
@@ -169,6 +173,10 @@ export interface SetupRequest {
 export interface CreateBookRequest {
   title: string;
   author: string;
+  year?: string;
+  country?: string;
+  originalLanguage?: string;
+  type?: string;
   introduction?: string;
 }
 
@@ -211,3 +219,6 @@ export const PASSWORD_REQUIREMENTS = {
 };
 
 export const VOTING_POINTS_TOTAL = 15;
+
+export const BOOK_TYPES = ['Novel', 'Play', 'Story collection', 'Poem collection', 'Epic'] as const;
+export type BookType = typeof BOOK_TYPES[number];

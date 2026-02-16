@@ -3,9 +3,12 @@ import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { BookOpen, Plus, Search, CheckCircle, ArrowUpDown } from 'lucide-react';
 import type { BookResponse, CreateBookRequest } from '@readingcircle/shared';
+import { BOOK_TYPES } from '@readingcircle/shared';
 
 type FilterValue = 'all' | 'read' | 'unread';
 type SortValue = 'title' | 'voted-down';
+
+const emptyBook: CreateBookRequest = { title: '', author: '', year: '', country: '', originalLanguage: '', type: '', introduction: '' };
 
 export function BooksPage() {
   const [books, setBooks] = useState<BookResponse[]>([]);
@@ -14,7 +17,7 @@ export function BooksPage() {
   const [filter, setFilter] = useState<FilterValue>('all');
   const [sort, setSort] = useState<SortValue>('title');
   const [showAdd, setShowAdd] = useState(false);
-  const [newBook, setNewBook] = useState<CreateBookRequest>({ title: '', author: '', introduction: '' });
+  const [newBook, setNewBook] = useState<CreateBookRequest>({ ...emptyBook });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -61,7 +64,7 @@ export function BooksPage() {
         body: JSON.stringify(newBook),
       });
       setBooks([book, ...books]);
-      setNewBook({ title: '', author: '', introduction: '' });
+      setNewBook({ ...emptyBook });
       setShowAdd(false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to add book');
@@ -73,6 +76,8 @@ export function BooksPage() {
   if (loading) {
     return <div className="text-brown-light animate-pulse font-serif text-lg">Loading books...</div>;
   }
+
+  const inputClass = "w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition";
 
   return (
     <div className="space-y-6">
@@ -102,7 +107,7 @@ export function BooksPage() {
                 value={newBook.title}
                 onChange={e => setNewBook({ ...newBook, title: e.target.value })}
                 required
-                className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition"
+                className={inputClass}
               />
             </div>
             <div>
@@ -112,8 +117,52 @@ export function BooksPage() {
                 value={newBook.author}
                 onChange={e => setNewBook({ ...newBook, author: e.target.value })}
                 required
-                className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition"
+                className={inputClass}
               />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-brown mb-1">Year</label>
+              <input
+                type="text"
+                value={newBook.year || ''}
+                onChange={e => setNewBook({ ...newBook, year: e.target.value })}
+                maxLength={30}
+                placeholder="e.g. 1984"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-brown mb-1">Country</label>
+              <input
+                type="text"
+                value={newBook.country || ''}
+                onChange={e => setNewBook({ ...newBook, country: e.target.value })}
+                maxLength={50}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-brown mb-1">Original Language</label>
+              <input
+                type="text"
+                value={newBook.originalLanguage || ''}
+                onChange={e => setNewBook({ ...newBook, originalLanguage: e.target.value })}
+                maxLength={50}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-brown mb-1">Type</label>
+              <select
+                value={newBook.type || ''}
+                onChange={e => setNewBook({ ...newBook, type: e.target.value })}
+                className={inputClass}
+              >
+                <option value="">--</option>
+                {BOOK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
             </div>
           </div>
           <div>
@@ -122,7 +171,7 @@ export function BooksPage() {
               value={newBook.introduction || ''}
               onChange={e => setNewBook({ ...newBook, introduction: e.target.value })}
               rows={3}
-              className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition resize-none"
+              className={`${inputClass} resize-none`}
             />
           </div>
           <div className="flex gap-3">
@@ -210,6 +259,14 @@ export function BooksPage() {
                     )}
                   </div>
                   <p className="text-sm text-brown-light mt-0.5">by {book.author}</p>
+                  {(book.year || book.country || book.originalLanguage || book.type) && (
+                    <div className="flex flex-wrap gap-2 mt-1.5">
+                      {book.year && <span className="text-xs text-brown-light bg-warm-gray-light px-2 py-0.5 rounded">{book.year}</span>}
+                      {book.country && <span className="text-xs text-brown-light bg-warm-gray-light px-2 py-0.5 rounded">{book.country}</span>}
+                      {book.originalLanguage && <span className="text-xs text-brown-light bg-warm-gray-light px-2 py-0.5 rounded">{book.originalLanguage}</span>}
+                      {book.type && <span className="text-xs text-burgundy bg-burgundy/10 px-2 py-0.5 rounded">{book.type}</span>}
+                    </div>
+                  )}
                   {book.introduction && (
                     <p className="text-sm text-brown mt-2 line-clamp-2">{book.introduction}</p>
                   )}

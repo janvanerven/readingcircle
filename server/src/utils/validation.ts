@@ -1,3 +1,5 @@
+import { BOOK_TYPES } from '@readingcircle/shared';
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function isValidEmail(email: string): boolean {
@@ -17,4 +19,8 @@ const VALID_AVAILABILITY = ['available', 'not_available', 'maybe', 'no_response'
 
 export function isValidAvailability(value: string): boolean {
   return (VALID_AVAILABILITY as readonly string[]).includes(value);
+}
+
+export function isValidBookType(value: string): boolean {
+  return (BOOK_TYPES as readonly string[]).includes(value);
 }

@@ -1,10 +1,10 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
-import { BookOpen, Users, Calendar, Home, LogOut, Menu, X } from 'lucide-react';
+import { BookOpen, Users, Calendar, Home, LogOut, Menu, X, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
-const navItems = [
+const baseNavItems = [
   { to: '/', icon: Home, label: 'Home' },
   { to: '/books', icon: BookOpen, label: 'Reading List' },
   { to: '/meets', icon: Calendar, label: 'Meets' },
@@ -13,6 +13,9 @@ const navItems = [
 
 export function Layout() {
   const { user, logout } = useAuth();
+  const navItems = user?.isAdmin
+    ? [...baseNavItems, { to: '/admin', icon: Shield, label: 'Admin' }]
+    : baseNavItems;
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 

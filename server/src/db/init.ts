@@ -111,5 +111,14 @@ export function initializeDatabase() {
     CREATE UNIQUE INDEX IF NOT EXISTS meet_user_rank_unique ON meet_top5(meet_id, user_id, rank);
   `);
 
+  // Migrations for new book columns (safe to re-run — catch if column already exists)
+  const addColumn = (table: string, column: string, type: string) => {
+    try { sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`); } catch { /* column already exists */ }
+  };
+  addColumn('books', 'year', 'TEXT');
+  addColumn('books', 'country', 'TEXT');
+  addColumn('books', 'original_language', 'TEXT');
+  addColumn('books', 'type', 'TEXT');
+
   sqlite.close();
 }
