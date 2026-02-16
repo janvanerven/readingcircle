@@ -17,6 +17,9 @@ import { initializeDatabase } from './db/init';
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
+// Trust first proxy (nginx)
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(helmet());
 
