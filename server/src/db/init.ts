@@ -111,6 +111,25 @@ export function initializeDatabase() {
     CREATE UNIQUE INDEX IF NOT EXISTS meet_user_rank_unique ON meet_top5(meet_id, user_id, rank);
   `);
 
+  // New tables for user books and password reset
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS user_books (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (user_id, book_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token TEXT NOT NULL UNIQUE,
+      expires_at TEXT NOT NULL,
+      used_at TEXT,
+      created_at TEXT NOT NULL
+    );
+  `);
+
   // Migrations for new book columns (safe to re-run — catch if column already exists)
   const addColumn = (table: string, column: string, type: string) => {
     try { sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`); } catch { /* column already exists */ }

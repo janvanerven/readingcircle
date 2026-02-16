@@ -1,9 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
-import { Shield, Download, Upload, X, AlertCircle, CheckCircle } from 'lucide-react';
+import { Shield, ShieldOff, Download, Upload, X, AlertCircle, CheckCircle, Trash2, UserPlus, Mail, Users } from 'lucide-react';
 import { BOOK_TYPES } from '@readingcircle/shared';
+import type { UserResponse, InvitationResponse } from '@readingcircle/shared';
+import { formatDate } from '@/lib/utils';
 
 const CSV_HEADERS = ['title', 'author', 'year', 'country', 'originalLanguage', 'type', 'introduction'] as const;
 
@@ -86,6 +88,72 @@ export function AdminPage() {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [fileError, setFileError] = useState('');
+
+  // Member management state
+  const [members, setMembers] = useState<UserResponse[]>([]);
+  const [invitations, setInvitations] = useState<InvitationResponse[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [inviteError, setInviteError] = useState('');
+
+  useEffect(() => {
+    loadMembers();
+  }, []);
+
+  async function loadMembers() {
+    try {
+      const [membersData, invData] = await Promise.all([
+        api<UserResponse[]>('/users'),
+        api<InvitationResponse[]>('/invitations'),
+      ]);
+      setMembers(membersData);
+      setInvitations(invData);
+    } catch {
+      // ignore
+    } finally {
+      setMembersLoading(false);
+    }
+  }
+
+  const toggleAdmin = async (memberId: string) => {
+    try {
+      await api(`/users/${memberId}/admin`, { method: 'PATCH' });
+      loadMembers();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed');
+    }
+  };
+
+  const removeMember = async (memberId: string, username: string) => {
+    if (!confirm(`Are you sure you want to remove ${username} from the circle?`)) return;
+    try {
+      await api(`/users/${memberId}`, { method: 'DELETE' });
+      loadMembers();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed');
+    }
+  };
+
+  const sendInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviteError('');
+    setInviting(true);
+    try {
+      await api('/invitations', {
+        method: 'POST',
+        body: JSON.stringify({ email: inviteEmail }),
+      });
+      setInviteEmail('');
+      setShowInvite(false);
+      loadMembers();
+    } catch (err: unknown) {
+      setInviteError(err instanceof Error ? err.message : 'Failed to send invitation');
+    } finally {
+      setInviting(false);
+    }
+  };
 
   if (!user?.isAdmin) {
     return <Navigate to="/" replace />;
@@ -277,6 +345,102 @@ export function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* Member Management Section */}
+      <div className="bg-white rounded-xl border border-warm-gray p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif font-semibold text-brown text-lg">Member Management</h2>
+          <button onClick={() => setShowInvite(!showInvite)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-burgundy hover:bg-burgundy-light text-white rounded-lg transition-colors text-sm font-medium">
+            <UserPlus className="w-4 h-4" />
+            Invite Member
+          </button>
+        </div>
+
+        {showInvite && (
+          <form onSubmit={sendInvite} className="bg-cream/50 rounded-lg border border-warm-gray p-4 space-y-3">
+            <h3 className="font-medium text-brown text-sm">Invite a New Member</h3>
+            {inviteError && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{inviteError}</div>}
+            <div className="flex gap-3">
+              <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} required
+                placeholder="friend@example.com"
+                className="flex-1 px-4 py-2.5 rounded-lg border border-warm-gray bg-white text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition text-sm" />
+              <button type="submit" disabled={inviting}
+                className="px-4 py-2 bg-burgundy hover:bg-burgundy-light text-white rounded-lg text-sm font-medium disabled:opacity-50">
+                {inviting ? 'Sending...' : 'Send'}
+              </button>
+              <button type="button" onClick={() => setShowInvite(false)}
+                className="px-4 py-2 text-brown hover:bg-warm-gray-light rounded-lg text-sm">Cancel</button>
+            </div>
+          </form>
+        )}
+
+        {membersLoading ? (
+          <div className="text-brown-light animate-pulse text-sm">Loading members...</div>
+        ) : (
+          <div className="divide-y divide-warm-gray-light">
+            {members.map(m => (
+              <div key={m.id} className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-burgundy/10 flex items-center justify-center">
+                    <Users className="w-4 h-4 text-burgundy" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-brown text-sm">{m.username}</span>
+                      {m.isAdmin && (
+                        <span className="text-xs bg-burgundy/10 text-burgundy px-2 py-0.5 rounded-full">Admin</span>
+                      )}
+                      {m.id === user?.id && (
+                        <span className="text-xs text-brown-lighter">(you)</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-brown-light">{m.email}</p>
+                  </div>
+                </div>
+
+                {m.id !== user?.id && (
+                  <div className="flex gap-1">
+                    <button onClick={() => toggleAdmin(m.id)} title={m.isAdmin ? 'Remove admin' : 'Make admin'}
+                      className="p-2 text-brown-light hover:bg-warm-gray-light rounded-lg transition-colors">
+                      {m.isAdmin ? <ShieldOff className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+                    </button>
+                    <button onClick={() => removeMember(m.id, m.username)} title="Remove from circle"
+                      className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Sent Invitations Section */}
+      {invitations.length > 0 && (
+        <div className="bg-white rounded-xl border border-warm-gray p-6 space-y-4">
+          <h2 className="font-serif font-semibold text-brown text-lg">Sent Invitations</h2>
+          <div className="divide-y divide-warm-gray-light">
+            {invitations.map(inv => (
+              <div key={inv.id} className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  <Mail className="w-4 h-4 text-brown-lighter" />
+                  <div>
+                    <span className="text-sm font-medium text-brown">{inv.email}</span>
+                    <p className="text-xs text-brown-lighter">
+                      Invited by {inv.invitedByUsername} on {formatDate(inv.createdAt)}
+                    </p>
+                  </div>
+                </div>
+                <span className={`text-xs px-2.5 py-1 rounded-full ${inv.used ? 'bg-sage/20 text-sage-dark' : 'bg-warm-gray text-brown-light'}`}>
+                  {inv.used ? 'Accepted' : 'Pending'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

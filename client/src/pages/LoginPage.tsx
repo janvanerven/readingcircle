@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { BookOpen } from 'lucide-react';
 
@@ -78,6 +79,12 @@ export function LoginPage() {
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
+
+          <div className="text-center">
+            <Link to="/forgot-password" className="text-sm text-burgundy hover:text-burgundy-light">
+              Forgot your password?
+            </Link>
+          </div>
         </form>
       </div>
     </div>

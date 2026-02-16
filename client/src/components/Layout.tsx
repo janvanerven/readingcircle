@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
-import { BookOpen, Users, Calendar, Home, LogOut, Menu, X, Shield } from 'lucide-react';
+import { BookOpen, Users, Calendar, Home, LogOut, Menu, X, Shield, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -55,13 +55,20 @@ export function Layout() {
               ))}
             </nav>
 
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2">
               <span className="text-sm text-brown-light">
                 {user?.username}
                 {user?.isAdmin && (
                   <span className="ml-1 text-xs bg-burgundy/10 text-burgundy px-2 py-0.5 rounded-full">Admin</span>
                 )}
               </span>
+              <NavLink
+                to="/settings"
+                className="p-2 text-brown-light hover:text-burgundy transition-colors rounded-lg hover:bg-warm-gray-light"
+                title="Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </NavLink>
               <button
                 onClick={handleLogout}
                 className="p-2 text-brown-light hover:text-burgundy transition-colors rounded-lg hover:bg-warm-gray-light"
@@ -109,6 +116,14 @@ export function Layout() {
                     <span className="ml-1 text-xs bg-burgundy/10 text-burgundy px-2 py-0.5 rounded-full">Admin</span>
                   )}
                 </div>
+                <NavLink
+                  to="/settings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-brown hover:bg-warm-gray-light"
+                >
+                  <Settings className="w-5 h-5" />
+                  Settings
+                </NavLink>
                 <button
                   onClick={handleLogout}
                   className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-brown hover:bg-warm-gray-light"

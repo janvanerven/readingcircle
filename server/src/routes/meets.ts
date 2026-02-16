@@ -122,6 +122,17 @@ meetRoutes.get('/:id', (req: Request, res: Response, next: NextFunction) => {
       return c;
     });
 
+    // Enrich with readByUsers
+    const candidatesFinal = candidatesWithPoints.map(c => {
+      const readByUsers = db
+        .select({ id: schema.userBooks.userId, username: schema.users.username })
+        .from(schema.userBooks)
+        .leftJoin(schema.users, eq(schema.userBooks.userId, schema.users.id))
+        .where(eq(schema.userBooks.bookId, c.bookId))
+        .all();
+      return { ...c, readByUsers };
+    });
+
     // Vote status (who has voted)
     const allUsers = db.select({ id: schema.users.id, username: schema.users.username })
       .from(schema.users)
@@ -197,7 +208,7 @@ meetRoutes.get('/:id', (req: Request, res: Response, next: NextFunction) => {
     res.json({
       ...meet,
       label: getMeetLabel(meet.hostUsername!, meet.selectedBookTitle),
-      candidates: candidatesWithPoints,
+      candidates: candidatesFinal,
       dateOptions: dateOptionsWithVotes,
       top5Entries,
       voteStatus,
@@ -381,6 +392,12 @@ meetRoutes.post('/:id/candidates', (req: Request, res: Response, next: NextFunct
       addedBy: req.user!.id,
       addedByUsername: req.user!.username,
       alreadySelectedInMeet: alreadySelected.length > 0,
+      readByUsers: db
+        .select({ id: schema.userBooks.userId, username: schema.users.username })
+        .from(schema.userBooks)
+        .leftJoin(schema.users, eq(schema.userBooks.userId, schema.users.id))
+        .where(eq(schema.userBooks.bookId, bookId))
+        .all(),
     });
   } catch (err) {
     next(err);

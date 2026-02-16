@@ -144,7 +144,13 @@ bookRoutes.get('/:id', (req: Request, res: Response, next: NextFunction) => {
       .where(eq(schema.bookComments.bookId, req.params.id as string))
       .all();
 
-    res.json({ ...book, selectedInMeets, candidateInMeets, comments });
+    // Check if the current user has personally read this book
+    const userHasRead = !!db.select()
+      .from(schema.userBooks)
+      .where(and(eq(schema.userBooks.userId, req.user!.id), eq(schema.userBooks.bookId, req.params.id as string)))
+      .get();
+
+    res.json({ ...book, userHasRead, selectedInMeets, candidateInMeets, comments });
   } catch (err) {
     next(err);
   }

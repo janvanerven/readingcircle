@@ -11,6 +11,10 @@ import { MeetsPage } from '@/pages/MeetsPage';
 import { MeetDetailPage } from '@/pages/MeetDetailPage';
 import { MembersPage } from '@/pages/MembersPage';
 import { AdminPage } from '@/pages/AdminPage';
+import { MemberProfilePage } from '@/pages/MemberProfilePage';
+import { SettingsPage } from '@/pages/SettingsPage';
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -45,6 +49,8 @@ export default function App() {
       <Route path="/login" element={!user ? <LoginPage /> : user.isTemporary ? <Navigate to="/setup" replace /> : <Navigate to="/" replace />} />
       <Route path="/setup" element={user?.isTemporary ? <SetupPage /> : <Navigate to="/" replace />} />
       <Route path="/join/:token" element={<JoinPage />} />
+      <Route path="/forgot-password" element={!user ? <ForgotPasswordPage /> : <Navigate to="/" replace />} />
+      <Route path="/reset-password/:token" element={!user ? <ResetPasswordPage /> : <Navigate to="/" replace />} />
 
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<DashboardPage />} />
@@ -53,6 +59,8 @@ export default function App() {
         <Route path="/meets" element={<MeetsPage />} />
         <Route path="/meets/:id" element={<MeetDetailPage />} />
         <Route path="/members" element={<MembersPage />} />
+        <Route path="/members/:id" element={<MemberProfilePage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="/admin" element={<AdminPage />} />
       </Route>
 

@@ -80,3 +80,44 @@ export async function sendInvitationEmail(email: string, token: string, inviterN
     console.log('Join URL:', joinUrl);
   }
 }
+
+export async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
+  const resetUrl = `${APP_URL}/reset-password/${token}`;
+
+  const html = `
+    <div style="font-family: 'Georgia', serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+      <h1 style="color: #6B2737; text-align: center; font-size: 28px;">Reading Circle</h1>
+      <div style="background: #FFF8F0; border-radius: 12px; padding: 30px; border: 1px solid #E8D5C4;">
+        <p style="color: #4A3728; font-size: 16px; line-height: 1.6;">
+          We received a request to reset your password. Click the button below to choose a new password.
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}" style="background: #6B2737; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: bold;">
+            Reset Password
+          </a>
+        </div>
+        <p style="color: #8B7355; font-size: 13px; text-align: center;">
+          This link expires in 1 hour. If you didn't request this, you can safely ignore this email.<br>
+          If the button doesn't work, copy and paste this URL:<br>
+          <a href="${resetUrl}" style="color: #6B2737;">${resetUrl}</a>
+        </p>
+      </div>
+    </div>
+  `;
+
+  const mailOptions = {
+    from: FROM,
+    to: email,
+    subject: 'Reset your Reading Circle password',
+    html,
+  };
+
+  const transport = getTransporter();
+  const result = await transport.sendMail(mailOptions);
+
+  if (!process.env.SMTP_HOST && process.env.NODE_ENV !== 'production') {
+    const parsed = JSON.parse(result.message);
+    console.log('Email would be sent:', { to: parsed.to, subject: parsed.subject });
+    console.log('Reset URL:', resetUrl);
+  }
+}

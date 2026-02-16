@@ -27,6 +27,7 @@ export interface BookResponse {
 }
 
 export interface BookDetailResponse extends BookResponse {
+  userHasRead: boolean;
   selectedInMeets: MeetSummary[];
   candidateInMeets: MeetSummary[];
   comments: BookCommentResponse[];
@@ -90,6 +91,7 @@ export interface CandidateResponse {
   addedByUsername: string;
   alreadySelectedInMeet: boolean;
   points?: number; // only visible after reveal
+  readByUsers: { id: string; username: string }[];
 }
 
 export interface DateOptionResponse {
@@ -140,6 +142,29 @@ export interface LatestTop5Response {
     username: string;
     entries: { bookId: string; bookTitle: string; bookAuthor: string; rank: number }[];
   }[];
+}
+
+export interface MemberSummaryResponse {
+  id: string;
+  username: string;
+  isAdmin: boolean;
+  hostCount: number;
+  readBookCount: number;
+}
+
+export interface MemberProfileResponse {
+  id: string;
+  username: string;
+  isAdmin: boolean;
+  createdAt: string;
+  hostCount: number;
+  readBooks: ReadBookResponse[];
+}
+
+export interface ReadBookResponse {
+  id: string;
+  title: string;
+  author: string;
 }
 
 export interface InvitationResponse {

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { api, ApiError } from '@/lib/api';
-import { BookOpen, ArrowLeft, MessageSquare, Calendar, Pencil, Trash2, X } from 'lucide-react';
+import { BookOpen, ArrowLeft, MessageSquare, Calendar, Pencil, Trash2, X, CheckCircle } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import type { BookDetailResponse } from '@readingcircle/shared';
 import { BOOK_TYPES } from '@readingcircle/shared';
@@ -100,6 +100,20 @@ export function BookDetailPage() {
       // ignore
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const toggleRead = async () => {
+    if (!book) return;
+    try {
+      if (book.userHasRead) {
+        await api(`/users/me/books/${id}`, { method: 'DELETE' });
+      } else {
+        await api(`/users/me/books/${id}`, { method: 'POST' });
+      }
+      loadBook();
+    } catch {
+      // ignore
     }
   };
 
@@ -252,7 +266,20 @@ export function BookDetailPage() {
                     {book.type && <span className="text-xs text-burgundy bg-burgundy/10 px-2 py-0.5 rounded">{book.type}</span>}
                   </div>
                 )}
-                <p className="text-sm text-brown-lighter mt-2">Added by {book.addedByUsername} on {formatDate(book.createdAt)}</p>
+                <div className="flex items-center gap-3 mt-3">
+                  <button
+                    onClick={toggleRead}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      book.userHasRead
+                        ? 'bg-sage/20 text-sage-dark hover:bg-sage/30'
+                        : 'border border-warm-gray text-brown-light hover:bg-warm-gray-light'
+                    }`}
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    {book.userHasRead ? 'Read' : 'Mark as Read'}
+                  </button>
+                  <span className="text-sm text-brown-lighter">Added by {book.addedByUsername} on {formatDate(book.createdAt)}</span>
+                </div>
               </div>
               {canEditOrDelete && (
                 <div className="flex items-center gap-2 flex-shrink-0">

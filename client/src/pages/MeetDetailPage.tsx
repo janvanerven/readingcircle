@@ -329,6 +329,11 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
                     {(() => { const book = books.find(b => b.id === c.bookId); return book && book.candidateCount > 1 ? ` — ${book.candidateCount}x nominated` : ''; })()}
                   </p>
                   {c.motivation && <p className="text-sm text-brown-light mt-1 italic">"{c.motivation}"</p>}
+                  {c.readByUsers && c.readByUsers.length > 0 && (
+                    <p className="text-xs text-sage-dark mt-1">
+                      Read by: {c.readByUsers.map(u => u.username).join(', ')}
+                    </p>
+                  )}
                   {c.points !== undefined && (
                     <p className="text-sm font-medium text-burgundy mt-1">{c.points} points</p>
                   )}
