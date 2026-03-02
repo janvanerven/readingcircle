@@ -289,5 +289,7 @@
   "settings.language": "Taal",
   "settings.languageLabel": "Interfacetaal",
   "settings.english": "English",
-  "settings.dutch": "Nederlands"
+  "settings.dutch": "Nederlands",
+  "settings.usernameSameAsCurrent": "Nieuwe gebruikersnaam is hetzelfde als je huidige.",
+  "settings.usernameInvalid": "Gebruikersnaam moet 2-30 tekens zijn: letters, cijfers, spaties, koppeltekens, underscores."
 }

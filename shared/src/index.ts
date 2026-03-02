@@ -236,6 +236,13 @@ export interface SubmitTop5Request {
   entries: { bookId: string; rank: number }[];
 }
 
+export const USERNAME_REQUIREMENTS = {
+  minLength: 2,
+  maxLength: 30,
+  pattern: /^[a-zA-Z0-9][a-zA-Z0-9 _-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/,
+  description: 'Username must be 2-30 characters: letters, numbers, spaces, hyphens, underscores. Must start and end with a letter or number.',
+};
+
 export const PASSWORD_REQUIREMENTS = {
   minLength: 8,
   requireUppercase: true,

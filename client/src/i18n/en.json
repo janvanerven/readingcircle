@@ -289,5 +289,7 @@
   "settings.language": "Language",
   "settings.languageLabel": "Interface Language",
   "settings.english": "English",
-  "settings.dutch": "Nederlands"
+  "settings.dutch": "Nederlands",
+  "settings.usernameSameAsCurrent": "New username is the same as your current one.",
+  "settings.usernameInvalid": "Username must be 2-30 characters: letters, numbers, spaces, hyphens, underscores."
 }

@@ -5,7 +5,7 @@ import { login, refreshAccessToken, setupAccount, registerWithInvitation, valida
 import { authenticate, requireSetupComplete } from '../middleware/auth';
 import { IS_PRODUCTION } from '../config';
 import { db, schema } from '../db';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { hashPassword, verifyPassword, validatePassword } from '../utils/password';
 import { generateAccessToken, generateRefreshToken, generateMagicLinkToken } from '../utils/tokens';
 import { isValidUsername, isValidEmail } from '../utils/validation';
@@ -113,23 +113,29 @@ authRoutes.get('/me', authenticate, (req: Request, res: Response) => {
 // Change username
 authRoutes.patch('/username', authenticate, requireSetupComplete, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { newUsername, currentPassword } = req.body;
-    if (!newUsername || !currentPassword) {
+    const { newUsername: rawUsername, currentPassword } = req.body;
+    if (!rawUsername || !currentPassword) {
       res.status(400).json({ error: 'New username and current password are required' });
       return;
     }
 
+    const newUsername = rawUsername.trim();
+
     if (!isValidUsername(newUsername)) {
-      throw new AppError(400, 'Username must be between 2 and 30 characters');
+      throw new AppError(400, 'Username must be 2-30 characters: letters, numbers, spaces, hyphens, underscores. Must start and end with a letter or number.');
     }
 
     const user = db.select().from(schema.users).where(eq(schema.users.id, req.user!.id)).get();
     if (!user) throw new AppError(404, 'User not found');
 
+    if (newUsername.toLowerCase() === user.username.toLowerCase()) {
+      throw new AppError(400, 'New username is the same as your current one');
+    }
+
     const valid = await verifyPassword(currentPassword, user.passwordHash);
     if (!valid) throw new AppError(401, 'Current password is incorrect');
 
-    const existing = db.select().from(schema.users).where(eq(schema.users.username, newUsername)).get();
+    const existing = db.select().from(schema.users).where(sql`lower(${schema.users.username}) = ${newUsername.toLowerCase()}`).get();
     if (existing && existing.id !== req.user!.id) {
       throw new AppError(400, 'Username already taken');
     }

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { Settings, User, Lock, Globe } from 'lucide-react';
-import { PASSWORD_REQUIREMENTS } from '@readingcircle/shared';
+import { PASSWORD_REQUIREMENTS, USERNAME_REQUIREMENTS } from '@readingcircle/shared';
 
 export function SettingsPage() {
   const { user, updateUser } = useAuth();
@@ -31,11 +31,24 @@ export function SettingsPage() {
     e.preventDefault();
     setUsernameError('');
     setUsernameSuccess('');
+
+    const trimmed = newUsername.trim();
+
+    if (trimmed.toLowerCase() === user?.username.toLowerCase()) {
+      setUsernameError(t('settings.usernameSameAsCurrent'));
+      return;
+    }
+
+    if (!USERNAME_REQUIREMENTS.pattern.test(trimmed)) {
+      setUsernameError(t('settings.usernameInvalid'));
+      return;
+    }
+
     setUsernameSubmitting(true);
     try {
       const data = await api<{ accessToken: string; user: { id: string; username: string; isAdmin: boolean; isTemporary: boolean; locale: string } }>('/auth/username', {
         method: 'PATCH',
-        body: JSON.stringify({ newUsername, currentPassword: usernamePassword }),
+        body: JSON.stringify({ newUsername: trimmed, currentPassword: usernamePassword }),
       });
       updateUser(data.user, data.accessToken);
       setUsernameSuccess(t('settings.usernameUpdated'));
@@ -107,6 +120,7 @@ export function SettingsPage() {
           {t('settings.changeUsername')}
         </h2>
         <p className="text-sm text-brown-light">{t('settings.currentUsername')} <strong className="text-brown">{user?.username}</strong></p>
+        <p className="text-xs text-brown-light">{t('settings.usernameInvalid')}</p>
 
         {usernameError && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{usernameError}</div>}
         {usernameSuccess && <div className="bg-sage/10 text-sage-dark px-4 py-3 rounded-lg text-sm border border-sage/30">{usernameSuccess}</div>}

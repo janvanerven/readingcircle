@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { db, schema } from '../db';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { hashPassword, verifyPassword, validatePassword } from '../utils/password';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken, generateMagicLinkToken } from '../utils/tokens';
 import { AppError } from '../middleware/error';
@@ -90,8 +90,9 @@ export async function refreshAccessToken(refreshToken: string) {
 }
 
 export async function setupAccount(userId: string, username: string, password: string, email: string) {
-  if (!isValidUsername(username)) {
-    throw new AppError(400, 'Username must be between 2 and 30 characters');
+  const trimmedUsername = username.trim();
+  if (!isValidUsername(trimmedUsername)) {
+    throw new AppError(400, 'Username must be 2-30 characters: letters, numbers, spaces, hyphens, underscores. Must start and end with a letter or number.');
   }
   if (!isValidEmail(email)) {
     throw new AppError(400, 'A valid email address is required');
@@ -101,8 +102,8 @@ export async function setupAccount(userId: string, username: string, password: s
     throw new AppError(400, validationError);
   }
 
-  // Check if username is taken by another user
-  const existingUser = db.select().from(schema.users).where(eq(schema.users.username, username)).get();
+  // Check if username is taken by another user (case-insensitive)
+  const existingUser = db.select().from(schema.users).where(sql`lower(${schema.users.username}) = ${trimmedUsername.toLowerCase()}`).get();
   if (existingUser && existingUser.id !== userId) {
     throw new AppError(400, 'Username already taken');
   }
@@ -112,7 +113,7 @@ export async function setupAccount(userId: string, username: string, password: s
 
   db.update(schema.users)
     .set({
-      username,
+      username: trimmedUsername,
       email,
       passwordHash,
       isTemporary: false,
@@ -186,13 +187,15 @@ export async function registerWithInvitation(token: string, username: string, pa
   if (invitation.usedAt) throw new AppError(400, 'Invitation has already been used');
   if (new Date(invitation.expiresAt) < new Date()) throw new AppError(400, 'Invitation has expired');
 
-  if (!isValidUsername(username)) {
-    throw new AppError(400, 'Username must be between 2 and 30 characters');
+  const trimmedUsername = username.trim();
+  if (!isValidUsername(trimmedUsername)) {
+    throw new AppError(400, 'Username must be 2-30 characters: letters, numbers, spaces, hyphens, underscores. Must start and end with a letter or number.');
   }
   const validationError = validatePassword(password);
   if (validationError) throw new AppError(400, validationError);
 
-  const existingUser = db.select().from(schema.users).where(eq(schema.users.username, username)).get();
+  // Case-insensitive uniqueness check
+  const existingUser = db.select().from(schema.users).where(sql`lower(${schema.users.username}) = ${trimmedUsername.toLowerCase()}`).get();
   if (existingUser) throw new AppError(400, 'Username already taken');
 
   const now = new Date().toISOString();
@@ -201,7 +204,7 @@ export async function registerWithInvitation(token: string, username: string, pa
 
   db.insert(schema.users).values({
     id: userId,
-    username,
+    username: trimmedUsername,
     email: invitation.email,
     passwordHash,
     isAdmin: false,
@@ -217,7 +220,7 @@ export async function registerWithInvitation(token: string, username: string, pa
 
   const authUser = {
     id: userId,
-    username,
+    username: trimmedUsername,
     isAdmin: false,
     isTemporary: false,
     locale: 'en',

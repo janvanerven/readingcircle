@@ -1,4 +1,4 @@
-import { BOOK_TYPES } from '@readingcircle/shared';
+import { BOOK_TYPES, USERNAME_REQUIREMENTS } from '@readingcircle/shared';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -8,7 +8,11 @@ export function isValidEmail(email: string): boolean {
 
 export function isValidUsername(username: string): boolean {
   const trimmed = username.trim();
-  return trimmed.length >= 2 && trimmed.length <= 30;
+  return (
+    trimmed.length >= USERNAME_REQUIREMENTS.minLength &&
+    trimmed.length <= USERNAME_REQUIREMENTS.maxLength &&
+    USERNAME_REQUIREMENTS.pattern.test(trimmed)
+  );
 }
 
 export function isValidStringField(value: string, maxLength: number): boolean {
