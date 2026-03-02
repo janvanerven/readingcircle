@@ -6,6 +6,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { AppError } from '../middleware/error';
 import { VOTING_POINTS_TOTAL } from '@readingcircle/shared';
 import { isValidStringField, isValidAvailability } from '../utils/validation';
+import { sendVotingOpenedEmail, sendBookSelectedEmail } from '../services/email';
 
 export const meetRoutes = Router();
 
@@ -325,6 +326,46 @@ meetRoutes.post('/:id/phase', (req: Request, res: Response, next: NextFunction) 
       .set({ phase, updatedAt: now })
       .where(eq(schema.meets.id, req.params.id as string))
       .run();
+
+    // Send email notifications (fire-and-forget)
+    const recipients = db.select({ email: schema.users.email })
+      .from(schema.users)
+      .where(eq(schema.users.isTemporary, false))
+      .all();
+
+    if (phase === 'voting') {
+      const host = db.select({ username: schema.users.username })
+        .from(schema.users).where(eq(schema.users.id, meet.hostId)).get();
+      const meetLabel = getMeetLabel(host?.username || 'Unknown', null);
+      const candidates = db.select({ title: schema.books.title, author: schema.books.author })
+        .from(schema.meetCandidates)
+        .leftJoin(schema.books, eq(schema.meetCandidates.bookId, schema.books.id))
+        .where(eq(schema.meetCandidates.meetId, req.params.id as string))
+        .all()
+        .map(c => ({ title: c.title!, author: c.author! }));
+
+      for (const r of recipients) {
+        sendVotingOpenedEmail(r.email, meetLabel, req.params.id as string, candidates)
+          .catch(err => console.error('Failed to send voting notification to', r.email, err));
+      }
+    } else if (phase === 'reading') {
+      const updatedMeet = db.select({
+        selectedBookId: schema.meets.selectedBookId,
+        selectedDate: schema.meets.selectedDate,
+      }).from(schema.meets).where(eq(schema.meets.id, req.params.id as string)).get();
+
+      const book = updatedMeet?.selectedBookId
+        ? db.select({ title: schema.books.title, author: schema.books.author })
+            .from(schema.books).where(eq(schema.books.id, updatedMeet.selectedBookId)).get()
+        : null;
+
+      if (book) {
+        for (const r of recipients) {
+          sendBookSelectedEmail(r.email, book.title, book.author, updatedMeet?.selectedDate || null, req.params.id as string)
+            .catch(err => console.error('Failed to send book selected notification to', r.email, err));
+        }
+      }
+    }
 
     res.json({ phase });
   } catch (err) {

@@ -121,3 +121,116 @@ export async function sendPasswordResetEmail(email: string, token: string): Prom
     console.log('Reset URL:', resetUrl);
   }
 }
+
+export async function sendVotingOpenedEmail(
+  email: string,
+  meetLabel: string,
+  meetId: string,
+  candidates: { title: string; author: string }[],
+): Promise<void> {
+  const meetUrl = `${APP_URL}/meets/${meetId}`;
+  const safeMeetLabel = escapeHtml(meetLabel);
+
+  const candidateList = candidates
+    .map(c => `<li style="color: #4A3728; font-size: 15px; line-height: 1.8;"><strong>${escapeHtml(c.title)}</strong> by ${escapeHtml(c.author)}</li>`)
+    .join('');
+
+  const html = `
+    <div style="font-family: 'Georgia', serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+      <h1 style="color: #6B2737; text-align: center; font-size: 28px;">Reading Circle</h1>
+      <div style="background: #FFF8F0; border-radius: 12px; padding: 30px; border: 1px solid #E8D5C4;">
+        <p style="color: #4A3728; font-size: 16px; line-height: 1.6;">
+          Voting is now open for <strong>${safeMeetLabel}</strong>!
+        </p>
+        <p style="color: #4A3728; font-size: 16px; line-height: 1.6;">
+          The candidates are:
+        </p>
+        <ul style="padding-left: 20px; margin: 16px 0;">
+          ${candidateList}
+        </ul>
+        <p style="color: #4A3728; font-size: 16px; line-height: 1.6;">
+          Head over to the meet page to cast your votes.
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${meetUrl}" style="background: #6B2737; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: bold;">
+            Vote Now
+          </a>
+        </div>
+        <p style="color: #8B7355; font-size: 13px; text-align: center;">
+          If the button doesn't work, copy and paste this URL:<br>
+          <a href="${meetUrl}" style="color: #6B2737;">${meetUrl}</a>
+        </p>
+      </div>
+    </div>
+  `;
+
+  const transport = getTransporter();
+  const result = await transport.sendMail({
+    from: FROM,
+    to: email,
+    subject: `Voting is open: ${safeMeetLabel}`,
+    html,
+  });
+
+  if (!process.env.SMTP_HOST && process.env.NODE_ENV !== 'production') {
+    const parsed = JSON.parse(result.message);
+    console.log('Email would be sent:', { to: parsed.to, subject: parsed.subject });
+  }
+}
+
+export async function sendBookSelectedEmail(
+  email: string,
+  bookTitle: string,
+  bookAuthor: string,
+  meetDate: string | null,
+  meetId: string,
+): Promise<void> {
+  const meetUrl = `${APP_URL}/meets/${meetId}`;
+  const safeTitle = escapeHtml(bookTitle);
+  const safeAuthor = escapeHtml(bookAuthor);
+
+  const dateInfo = meetDate
+    ? `<p style="color: #4A3728; font-size: 16px; line-height: 1.6;">The meet is scheduled for <strong>${escapeHtml(meetDate)}</strong>.</p>`
+    : '';
+
+  const html = `
+    <div style="font-family: 'Georgia', serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+      <h1 style="color: #6B2737; text-align: center; font-size: 28px;">Reading Circle</h1>
+      <div style="background: #FFF8F0; border-radius: 12px; padding: 30px; border: 1px solid #E8D5C4;">
+        <p style="color: #4A3728; font-size: 16px; line-height: 1.6;">
+          The winner has been chosen! Our next read is:
+        </p>
+        <div style="text-align: center; margin: 20px 0; padding: 20px; background: white; border-radius: 8px; border: 1px solid #E8D5C4;">
+          <p style="color: #6B2737; font-size: 22px; font-weight: bold; margin: 0;">${safeTitle}</p>
+          <p style="color: #8B7355; font-size: 16px; margin: 8px 0 0;">by ${safeAuthor}</p>
+        </div>
+        ${dateInfo}
+        <p style="color: #4A3728; font-size: 16px; line-height: 1.6;">
+          Happy reading!
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${meetUrl}" style="background: #6B2737; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: bold;">
+            View Meet
+          </a>
+        </div>
+        <p style="color: #8B7355; font-size: 13px; text-align: center;">
+          If the button doesn't work, copy and paste this URL:<br>
+          <a href="${meetUrl}" style="color: #6B2737;">${meetUrl}</a>
+        </p>
+      </div>
+    </div>
+  `;
+
+  const transport = getTransporter();
+  const result = await transport.sendMail({
+    from: FROM,
+    to: email,
+    subject: `${safeTitle} has been selected!`,
+    html,
+  });
+
+  if (!process.env.SMTP_HOST && process.env.NODE_ENV !== 'production') {
+    const parsed = JSON.parse(result.message);
+    console.log('Email would be sent:', { to: parsed.to, subject: parsed.subject });
+  }
+}
