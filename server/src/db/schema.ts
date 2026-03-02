@@ -9,6 +9,7 @@ export const users = sqliteTable('users', {
   isTemporary: integer('is_temporary', { mode: 'boolean' }).notNull().default(true),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
+  locale: text('locale').notNull().default('en'),
 });
 
 export const invitations = sqliteTable('invitations', {

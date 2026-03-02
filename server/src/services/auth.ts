@@ -54,6 +54,7 @@ export async function login(username: string, password: string) {
     username: user.username,
     isAdmin: user.isAdmin,
     isTemporary: user.isTemporary,
+    locale: user.locale,
   };
 
   const accessToken = generateAccessToken(authUser);
@@ -75,6 +76,7 @@ export async function refreshAccessToken(refreshToken: string) {
       username: user.username,
       isAdmin: user.isAdmin,
       isTemporary: user.isTemporary,
+      locale: user.locale,
     };
 
     const accessToken = generateAccessToken(authUser);
@@ -127,6 +129,7 @@ export async function setupAccount(userId: string, username: string, password: s
     username: user.username,
     isAdmin: user.isAdmin,
     isTemporary: user.isTemporary,
+    locale: user.locale,
   };
 
   const accessToken = generateAccessToken(authUser);
@@ -217,6 +220,7 @@ export async function registerWithInvitation(token: string, username: string, pa
     username,
     isAdmin: false,
     isTemporary: false,
+    locale: 'en',
   };
 
   const accessToken = generateAccessToken(authUser);

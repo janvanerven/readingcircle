@@ -6,6 +6,7 @@ export interface UserResponse {
   email: string;
   isAdmin: boolean;
   isTemporary: boolean;
+  locale: string;
   createdAt: string;
 }
 

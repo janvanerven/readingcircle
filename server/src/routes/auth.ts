@@ -140,7 +140,7 @@ authRoutes.patch('/username', authenticate, requireSetupComplete, async (req: Re
       .where(eq(schema.users.id, req.user!.id))
       .run();
 
-    const authUser = { id: user.id, username: newUsername, isAdmin: user.isAdmin, isTemporary: user.isTemporary };
+    const authUser = { id: user.id, username: newUsername, isAdmin: user.isAdmin, isTemporary: user.isTemporary, locale: user.locale };
     const accessToken = generateAccessToken(authUser);
     const refreshToken = generateRefreshToken(user.id);
 
@@ -178,6 +178,29 @@ authRoutes.patch('/password', authenticate, requireSetupComplete, async (req: Re
       .run();
 
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Change locale
+authRoutes.patch('/locale', authenticate, requireSetupComplete, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { locale } = req.body;
+    const supportedLocales = ['en', 'nl'];
+
+    if (!locale || !supportedLocales.includes(locale)) {
+      res.status(400).json({ error: 'Locale must be one of: en, nl' });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    db.update(schema.users)
+      .set({ locale, updatedAt: now })
+      .where(eq(schema.users.id, req.user!.id))
+      .run();
+
+    res.json({ ok: true, locale });
   } catch (err) {
     next(err);
   }
