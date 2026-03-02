@@ -258,7 +258,15 @@ export function BookDetailPage() {
                 <BookOpen className="w-7 h-7 text-burgundy" />
               </div>
               <div className="flex-1 min-w-0">
-                <h1 className="text-2xl sm:text-3xl font-serif font-bold text-brown">{book.title}</h1>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-brown">{book.title}</h1>
+                  {book.isRead && (
+                    <span className="inline-flex items-center gap-1 text-xs text-sage-dark bg-sage/20 px-2 py-0.5 rounded-full">
+                      <CheckCircle className="w-3 h-3" />
+                      {t('bookDetail.bookClubRead')}
+                    </span>
+                  )}
+                </div>
                 <p className="text-lg text-brown-light mt-1">{t('common.by')} {book.author}</p>
                 {(book.year || book.country || book.originalLanguage || book.type) && (
                   <div className="flex flex-wrap gap-2 mt-2">
