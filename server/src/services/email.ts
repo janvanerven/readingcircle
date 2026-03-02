@@ -67,15 +67,15 @@ const emailStrings: Record<string, Record<string, string>> = {
     by: 'by',
   },
   nl: {
-    appTitle: 'Leeskring',
+    appTitle: 'Reading Circle',
     // Invitation
-    inviteSubject: '{{name}} heeft je uitgenodigd voor de Leeskring',
-    inviteGreeting: 'Hallo! <strong>{{name}}</strong> heeft je uitgenodigd om lid te worden van de Leeskring.',
+    inviteSubject: '{{name}} heeft je uitgenodigd voor de Reading Circle',
+    inviteGreeting: 'Hallo! <strong>{{name}}</strong> heeft je uitgenodigd om lid te worden van de Reading Circle.',
     inviteAction: 'Klik op de knop hieronder om je account aan te maken en samen boeken te ontdekken.',
     inviteButton: 'Word lid',
     inviteExpiry: 'Deze uitnodiging verloopt na 24 uur. Als de knop niet werkt, kopieer en plak deze URL:',
     // Password reset
-    resetSubject: 'Reset je Leeskring-wachtwoord',
+    resetSubject: 'Reset je Reading Circle-wachtwoord',
     resetBody: 'We hebben een verzoek ontvangen om je wachtwoord te resetten. Klik op de knop hieronder om een nieuw wachtwoord te kiezen.',
     resetButton: 'Wachtwoord resetten',
     resetExpiry: 'Deze link verloopt na 1 uur. Als je dit niet hebt aangevraagd, kun je deze e-mail veilig negeren.<br>Als de knop niet werkt, kopieer en plak deze URL:',
