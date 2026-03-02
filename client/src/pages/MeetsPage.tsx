@@ -152,8 +152,8 @@ export function MeetsPage() {
                         {meet.selectedDate && <span>{formatDateTime(meet.selectedDate)}</span>}
                       </div>
                     </div>
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize whitespace-nowrap ${phaseColors[meet.phase]}`}>
-                      {meet.phase}
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${phaseColors[meet.phase]}`}>
+                      {t(`meets.phases.${meet.phase}`)}
                     </span>
                   </div>
                 </Link>

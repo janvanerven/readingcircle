@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDateTime, toLocalDateTimeInput } from '@/lib/utils';
-import { ArrowLeft, Calendar, MapPin, BookOpen, Vote, Clock, Trophy, AlertTriangle, Check, X, Minus, Eye, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
-import type { MeetDetailResponse, BookResponse, Top5EntryResponse, AggregatedRankingResponse } from '@readingcircle/shared';
+import { ArrowLeft, Calendar, MapPin, BookOpen, Vote, Clock, Trophy, AlertTriangle, Check, X, Minus, Eye, Trash2, ChevronUp, ChevronDown, Pencil } from 'lucide-react';
+import type { MeetDetailResponse, BookResponse, Top5EntryResponse, AggregatedRankingResponse, UserResponse } from '@readingcircle/shared';
 import { VOTING_POINTS_TOTAL } from '@readingcircle/shared';
 
 export function MeetDetailPage() {
@@ -17,6 +17,10 @@ export function MeetDetailPage() {
   const [books, setBooks] = useState<BookResponse[]>([]);
   const [aggregatedRanking, setAggregatedRanking] = useState<AggregatedRankingResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ hostId: '', location: '', description: '' });
+  const [editSaving, setEditSaving] = useState(false);
+  const [members, setMembers] = useState<UserResponse[]>([]);
 
   const loadMeet = useCallback(async () => {
     try {
@@ -61,24 +65,100 @@ export function MeetDetailPage() {
 
       {/* Header */}
       <div className="bg-white rounded-xl border border-warm-gray p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-brown">{meet.label}</h1>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-brown-light">
-              <span>{t('meetDetail.host', { name: meet.hostUsername })}</span>
-              {meet.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {meet.location}</span>}
-              {meet.selectedDate && <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {formatDateTime(meet.selectedDate)}</span>}
+        {editing ? (
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            setEditSaving(true);
+            try {
+              const body: Record<string, string> = {};
+              if (editForm.hostId !== meet.hostId) body.hostId = editForm.hostId;
+              if (editForm.location !== (meet.location || '')) body.location = editForm.location;
+              if (editForm.description !== (meet.description || '')) body.description = editForm.description;
+              await api(`/meets/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+              setEditing(false);
+              loadMeet();
+            } catch (err: unknown) {
+              alert(err instanceof Error ? err.message : 'Failed');
+            } finally {
+              setEditSaving(false);
+            }
+          }} className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-serif font-semibold text-brown text-lg">{t('meetDetail.editMeet')}</h2>
+              <button type="button" onClick={() => setEditing(false)} className="text-brown-lighter hover:text-brown">
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            {meet.description && <p className="text-brown mt-3 whitespace-pre-wrap">{meet.description}</p>}
-          </div>
-          <span className={`text-sm px-3 py-1.5 rounded-full font-medium capitalize whitespace-nowrap ${phaseColors[meet.phase]}`}>
-            {meet.phase}
-          </span>
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-brown mb-1">{t('meetDetail.hostLabel')}</label>
+              <select value={editForm.hostId} onChange={e => setEditForm({ ...editForm, hostId: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition">
+                {members.map(m => <option key={m.id} value={m.id}>{m.username}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-brown mb-1">{t('meets.locationLabel')}</label>
+              <input type="text" value={editForm.location} onChange={e => setEditForm({ ...editForm, location: e.target.value })}
+                placeholder={t('meets.locationPlaceholder')}
+                className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-brown mb-1">{t('meets.descriptionLabel')}</label>
+              <textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                rows={3}
+                className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition resize-none" />
+            </div>
+            <div className="flex gap-3">
+              <button type="submit" disabled={editSaving}
+                className="px-4 py-2 bg-burgundy hover:bg-burgundy-light text-white rounded-lg text-sm font-medium disabled:opacity-50">
+                {editSaving ? t('meetDetail.saving') : t('common.save')}
+              </button>
+              <button type="button" onClick={() => setEditing(false)}
+                className="px-4 py-2 text-brown hover:bg-warm-gray-light rounded-lg text-sm">
+                {t('common.cancel')}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-serif font-bold text-brown">{meet.label}</h1>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-brown-light">
+                  <span>{t('meetDetail.host', { name: meet.hostUsername })}</span>
+                  {meet.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {meet.location}</span>}
+                  {meet.selectedDate && <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {formatDateTime(meet.selectedDate)}</span>}
+                </div>
+                {meet.description && <p className="text-brown mt-3 whitespace-pre-wrap">{meet.description}</p>}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className={`text-sm px-3 py-1.5 rounded-full font-medium whitespace-nowrap ${phaseColors[meet.phase]}`}>
+                  {t(`meets.phases.${meet.phase}`)}
+                </span>
+                {isHostOrAdmin && (
+                  <button
+                    onClick={async () => {
+                      setEditForm({ hostId: meet.hostId, location: meet.location || '', description: meet.description || '' });
+                      try {
+                        const users = await api<UserResponse[]>('/users');
+                        setMembers(users.filter(u => !u.isTemporary));
+                      } catch { /* ignore */ }
+                      setEditing(true);
+                    }}
+                    className="p-2 text-brown-lighter hover:text-burgundy hover:bg-burgundy/5 rounded-lg transition-colors"
+                    title={t('meetDetail.editMeet')}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
 
-        {/* Phase controls */}
-        {isHostOrAdmin && meet.phase !== 'completed' && (
-          <PhaseControls meet={meet} onUpdate={loadMeet} navigate={navigate} />
+            {/* Phase controls */}
+            {isHostOrAdmin && meet.phase !== 'completed' && (
+              <PhaseControls meet={meet} onUpdate={loadMeet} navigate={navigate} />
+            )}
+          </>
         )}
       </div>
 
@@ -116,12 +196,21 @@ export function MeetDetailPage() {
 function PhaseControls({ meet, onUpdate, navigate }: { meet: MeetDetailResponse; onUpdate: () => void; navigate: (path: string) => void }) {
   const { t } = useTranslation();
   const [changing, setChanging] = useState(false);
+  const [pendingPhase, setPendingPhase] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const changePhase = async (phase: string) => {
-    if (!confirm(t('meetDetail.confirmPhaseChange', { phase }))) return;
+  const confirmMessages: Record<string, string> = {
+    voting: t('meetDetail.confirmVoting'),
+    reading: t('meetDetail.confirmReading'),
+    completed: t('meetDetail.confirmComplete'),
+    cancelled: t('meetDetail.confirmCancel'),
+  };
+
+  const executePhaseChange = async (phase: string) => {
     setChanging(true);
     try {
       await api(`/meets/${meet.id}/phase`, { method: 'POST', body: JSON.stringify({ phase }) });
+      setPendingPhase(null);
       onUpdate();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Failed');
@@ -131,7 +220,6 @@ function PhaseControls({ meet, onUpdate, navigate }: { meet: MeetDetailResponse;
   };
 
   const deleteMeet = async () => {
-    if (!confirm(t('meetDetail.confirmDelete'))) return;
     try {
       await api(`/meets/${meet.id}`, { method: 'DELETE' });
       navigate('/meets');
@@ -161,29 +249,77 @@ function PhaseControls({ meet, onUpdate, navigate }: { meet: MeetDetailResponse;
 
   if (meet.phase === 'cancelled') {
     return (
-      <div className="flex flex-wrap gap-2 mt-5 pt-5 border-t border-warm-gray-light">
-        <button onClick={deleteMeet} className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-1.5">
-          <Trash2 className="w-4 h-4" /> {t('meetDetail.deleteMeet')}
-        </button>
+      <div className="mt-5 pt-5 border-t border-warm-gray-light">
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setShowDeleteConfirm(true)} className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-1.5">
+            <Trash2 className="w-4 h-4" /> {t('meetDetail.deleteMeet')}
+          </button>
+        </div>
+        {showDeleteConfirm && (
+          <div className="mt-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-700 mb-3">{t('meetDetail.confirmDelete')}</p>
+            <div className="flex gap-2">
+              <button onClick={deleteMeet} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium">
+                {t('meetDetail.confirm')}
+              </button>
+              <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 text-brown hover:bg-warm-gray-light rounded-lg text-sm">
+                {t('common.cancel')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="flex flex-wrap gap-2 mt-5 pt-5 border-t border-warm-gray-light">
-      {available.map(tr => (
-        <button key={tr.phase} onClick={() => changePhase(tr.phase)} disabled={changing}
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${tr.color} hover:opacity-90 disabled:opacity-50`}>
-          {tr.label}
+    <div className="mt-5 pt-5 border-t border-warm-gray-light">
+      <div className="flex flex-wrap gap-2">
+        {available.map(tr => (
+          <button key={tr.phase} onClick={() => setPendingPhase(tr.phase)} disabled={changing}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${tr.color} hover:opacity-90 disabled:opacity-50`}>
+            {tr.label}
+          </button>
+        ))}
+        <button onClick={() => setPendingPhase('cancelled')} disabled={changing}
+          className="px-4 py-2 rounded-lg text-sm font-medium text-brown hover:bg-warm-gray-light">
+          {t('meetDetail.cancelMeet')}
         </button>
-      ))}
-      <button onClick={() => changePhase('cancelled')} disabled={changing}
-        className="px-4 py-2 rounded-lg text-sm font-medium text-brown hover:bg-warm-gray-light">
-        {t('meetDetail.cancelMeet')}
-      </button>
-      <button onClick={deleteMeet} className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 ml-auto">
-        <Trash2 className="w-4 h-4" />
-      </button>
+        <button onClick={() => setShowDeleteConfirm(true)} className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 ml-auto">
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+      {pendingPhase && (
+        <div className={`mt-3 p-4 rounded-lg border ${pendingPhase === 'cancelled' ? 'bg-red-50 border-red-200' : 'bg-cream border-warm-gray'}`}>
+          <p className={`text-sm mb-3 ${pendingPhase === 'cancelled' ? 'text-red-700' : 'text-brown'}`}>
+            {confirmMessages[pendingPhase]}
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => executePhaseChange(pendingPhase)} disabled={changing}
+              className={`px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 ${
+                pendingPhase === 'cancelled' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-burgundy hover:bg-burgundy-light text-white'
+              }`}>
+              {t('meetDetail.confirm')}
+            </button>
+            <button onClick={() => setPendingPhase(null)} className="px-4 py-2 text-brown hover:bg-warm-gray-light rounded-lg text-sm">
+              {t('common.cancel')}
+            </button>
+          </div>
+        </div>
+      )}
+      {showDeleteConfirm && (
+        <div className="mt-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-700 mb-3">{t('meetDetail.confirmDelete')}</p>
+          <div className="flex gap-2">
+            <button onClick={deleteMeet} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium">
+              {t('meetDetail.confirm')}
+            </button>
+            <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 text-brown hover:bg-warm-gray-light rounded-lg text-sm">
+              {t('common.cancel')}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

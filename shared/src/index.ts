@@ -212,6 +212,7 @@ export interface CreateMeetRequest {
 }
 
 export interface UpdateMeetRequest {
+  hostId?: string;
   location?: string;
   description?: string;
   selectedBookId?: string | null;

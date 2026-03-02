@@ -269,11 +269,18 @@ meetRoutes.put('/:id', (req: Request, res: Response, next: NextFunction) => {
       throw new AppError(403, 'Only the host or an admin can update this meet');
     }
 
-    const { location, description, selectedBookId, selectedDate } = req.body;
+    const { hostId, location, description, selectedBookId, selectedDate } = req.body;
     const now = new Date().toISOString();
+
+    if (hostId !== undefined) {
+      const hostUser = db.select({ id: schema.users.id }).from(schema.users)
+        .where(and(eq(schema.users.id, hostId), eq(schema.users.isTemporary, false))).get();
+      if (!hostUser) throw new AppError(400, 'Invalid host user');
+    }
 
     db.update(schema.meets)
       .set({
+        ...(hostId !== undefined && { hostId }),
         ...(location !== undefined && { location }),
         ...(description !== undefined && { description }),
         ...(selectedBookId !== undefined && { selectedBookId }),
