@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { api, setAccessToken, setOnAuthError } from './api';
+import i18n from '../i18n';
 
 interface AuthUser {
   id: string;
   username: string;
   isAdmin: boolean;
   isTemporary: boolean;
+  locale: string;
 }
 
 interface AuthContextType {
@@ -41,6 +43,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const data = await res.json();
           setAccessToken(data.accessToken);
           setUser(data.user);
+          if (data.user.locale) {
+            i18n.changeLanguage(data.user.locale);
+            localStorage.setItem('locale', data.user.locale);
+          }
         }
       } catch {
         // No session
@@ -58,6 +64,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     setAccessToken(data.accessToken);
     setUser(data.user);
+    if (data.user.locale) {
+      i18n.changeLanguage(data.user.locale);
+      localStorage.setItem('locale', data.user.locale);
+    }
   };
 
   const logout = async () => {
