@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { BookOpen, Calendar, Users, ArrowRight, Trophy } from 'lucide-react';
@@ -7,6 +8,7 @@ import type { MeetResponse, BookResponse, AggregatedRankingResponse, LatestTop5R
 
 export function DashboardPage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [meets, setMeets] = useState<(MeetResponse & { label: string })[]>([]);
   const [books, setBooks] = useState<BookResponse[]>([]);
   const [aggregatedRanking, setAggregatedRanking] = useState<AggregatedRankingResponse[]>([]);
@@ -46,16 +48,16 @@ export function DashboardPage() {
   };
 
   if (loading) {
-    return <div className="text-brown-light animate-pulse font-serif text-lg">Loading...</div>;
+    return <div className="text-brown-light animate-pulse font-serif text-lg">{t('common.loading')}</div>;
   }
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-serif font-bold text-burgundy">
-          Welcome back, {user?.username}
+          {t('dashboard.welcomeBack', { username: user?.username })}
         </h1>
-        <p className="text-brown-light mt-1">Here's what's happening in your Reading Circle</p>
+        <p className="text-brown-light mt-1">{t('dashboard.subtitle')}</p>
       </div>
 
       {/* Stats */}
@@ -66,7 +68,7 @@ export function DashboardPage() {
           </div>
           <div>
             <div className="text-2xl font-serif font-bold text-brown">{activeMeets.length}</div>
-            <div className="text-sm text-brown-light">Active Meets</div>
+            <div className="text-sm text-brown-light">{t('dashboard.activeMeets')}</div>
           </div>
         </div>
         <div className="bg-white rounded-xl border border-warm-gray p-5 flex items-center gap-4">
@@ -75,7 +77,7 @@ export function DashboardPage() {
           </div>
           <div>
             <div className="text-2xl font-serif font-bold text-brown">{books.length}</div>
-            <div className="text-sm text-brown-light">Books on List</div>
+            <div className="text-sm text-brown-light">{t('dashboard.booksOnList')}</div>
           </div>
         </div>
         <div className="bg-white rounded-xl border border-warm-gray p-5 flex items-center gap-4">
@@ -86,7 +88,7 @@ export function DashboardPage() {
             <div className="text-2xl font-serif font-bold text-brown">
               {meets.filter(m => m.phase === 'completed').length}
             </div>
-            <div className="text-sm text-brown-light">Completed Meets</div>
+            <div className="text-sm text-brown-light">{t('dashboard.completedMeets')}</div>
           </div>
         </div>
       </div>
@@ -94,17 +96,17 @@ export function DashboardPage() {
       {/* Active Meets */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-serif font-semibold text-brown">Active Meets</h2>
+          <h2 className="text-xl font-serif font-semibold text-brown">{t('dashboard.activeMeets')}</h2>
           <Link to="/meets" className="text-sm text-burgundy hover:text-burgundy-light flex items-center gap-1">
-            View all <ArrowRight className="w-4 h-4" />
+            {t('dashboard.viewAll')} <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
         {activeMeets.length === 0 ? (
           <div className="bg-white rounded-xl border border-warm-gray p-8 text-center">
             <Calendar className="w-10 h-10 text-brown-lighter mx-auto mb-3" />
-            <p className="text-brown-light">No active meets right now</p>
+            <p className="text-brown-light">{t('dashboard.noActiveMeets')}</p>
             <Link to="/meets" className="text-burgundy hover:text-burgundy-light text-sm mt-2 inline-block">
-              Create one
+              {t('dashboard.createOne')}
             </Link>
           </div>
         ) : (
@@ -119,12 +121,12 @@ export function DashboardPage() {
                   <div>
                     <h3 className="font-medium text-brown">{meet.label}</h3>
                     <p className="text-sm text-brown-light mt-1">
-                      Hosted by {meet.hostUsername}
+                      {t('dashboard.hostedBy', { name: meet.hostUsername })}
                       {meet.location && ` — ${meet.location}`}
                     </p>
                   </div>
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${phaseColors[meet.phase]}`}>
-                    {meet.phase}
+                    {t('meets.phases.' + meet.phase)}
                   </span>
                 </div>
               </Link>
@@ -138,7 +140,7 @@ export function DashboardPage() {
         <div>
           <h2 className="text-xl font-serif font-semibold text-brown mb-4 flex items-center gap-2">
             <Trophy className="w-5 h-5 text-burgundy" />
-            All-Time Group Ranking
+            {t('dashboard.allTimeGroupRanking')}
           </h2>
           <div className="bg-white rounded-xl border border-warm-gray p-6">
             <div className="space-y-2">
@@ -152,11 +154,11 @@ export function DashboardPage() {
                   }`}>{i + 1}</span>
                   <div className="flex-1 min-w-0">
                     <span className="font-medium text-brown">{r.bookTitle}</span>
-                    <span className="text-sm text-brown-light ml-2">by {r.bookAuthor}</span>
+                    <span className="text-sm text-brown-light ml-2">{t('common.by')} {r.bookAuthor}</span>
                   </div>
                   <div className="text-right">
-                    <span className="font-medium text-burgundy">{r.totalPoints} pts</span>
-                    <span className="text-xs text-brown-lighter ml-1">({r.appearances}x)</span>
+                    <span className="font-medium text-burgundy">{t('dashboard.pts', { points: r.totalPoints })}</span>
+                    <span className="text-xs text-brown-lighter ml-1">{t('dashboard.appearances', { count: r.appearances })}</span>
                   </div>
                 </div>
               ))}
@@ -171,7 +173,7 @@ export function DashboardPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-serif font-semibold text-brown flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-sage-dark" />
-              Latest Top 5
+              {t('dashboard.latestTop5')}
             </h2>
             <Link to={`/meets/${latestTop5.meetId}`} className="text-sm text-burgundy hover:text-burgundy-light flex items-center gap-1">
               {latestTop5.meetLabel} <ArrowRight className="w-4 h-4" />
@@ -180,7 +182,7 @@ export function DashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {latestTop5.userTop5s.map(ut => (
               <div key={ut.userId} className="bg-white rounded-xl border border-warm-gray p-5">
-                <h3 className="font-medium text-brown mb-3">{ut.username}'s Top 5</h3>
+                <h3 className="font-medium text-brown mb-3">{t('dashboard.usersTop5', { name: ut.username })}</h3>
                 <ol className="space-y-1.5">
                   {ut.entries.map(e => (
                     <li key={e.bookId} className="flex items-center gap-2 text-sm">

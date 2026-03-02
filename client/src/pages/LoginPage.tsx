@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { BookOpen } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -30,8 +32,8 @@ export function LoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-burgundy rounded-full mb-4">
             <BookOpen className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-serif font-bold text-burgundy">Reading Circle</h1>
-          <p className="text-brown-light mt-2">Welcome back to your book club</p>
+          <h1 className="text-3xl font-serif font-bold text-burgundy">{t('auth.readingCircle')}</h1>
+          <p className="text-brown-light mt-2">{t('auth.welcomeBack')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-warm-gray p-8 space-y-5">
@@ -43,7 +45,7 @@ export function LoginPage() {
 
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-brown mb-1.5">
-              Username
+              {t('auth.username')}
             </label>
             <input
               id="username"
@@ -53,13 +55,13 @@ export function LoginPage() {
               required
               autoFocus
               className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown placeholder:text-brown-lighter focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition"
-              placeholder="Enter your username"
+              placeholder={t('auth.enterUsername')}
             />
           </div>
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-brown mb-1.5">
-              Password
+              {t('auth.password')}
             </label>
             <input
               id="password"
@@ -68,7 +70,7 @@ export function LoginPage() {
               onChange={e => setPassword(e.target.value)}
               required
               className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown placeholder:text-brown-lighter focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition"
-              placeholder="Enter your password"
+              placeholder={t('auth.enterPassword')}
             />
           </div>
 
@@ -77,12 +79,12 @@ export function LoginPage() {
             disabled={loading}
             className="w-full py-2.5 bg-burgundy hover:bg-burgundy-light text-white font-medium rounded-lg transition-colors disabled:opacity-50"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? t('auth.signingIn') : t('auth.signIn')}
           </button>
 
           <div className="text-center">
             <Link to="/forgot-password" className="text-sm text-burgundy hover:text-burgundy-light">
-              Forgot your password?
+              {t('auth.forgotPassword')}
             </Link>
           </div>
         </form>

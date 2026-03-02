@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { BookOpen } from 'lucide-react';
 import { PASSWORD_REQUIREMENTS } from '@readingcircle/shared';
+import { useTranslation } from 'react-i18next';
 
 export function ResetPasswordPage() {
+  const { t } = useTranslation();
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
@@ -17,7 +19,7 @@ export function ResetPasswordPage() {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('auth.passwordsDoNotMatch'));
       return;
     }
 
@@ -48,19 +50,19 @@ export function ResetPasswordPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <BookOpen className="w-12 h-12 text-burgundy mx-auto mb-3" />
-          <h1 className="text-3xl font-serif font-bold text-burgundy">Reading Circle</h1>
+          <h1 className="text-3xl font-serif font-bold text-burgundy">{t('auth.readingCircle')}</h1>
         </div>
 
         <div className="bg-white rounded-xl border border-warm-gray p-8 space-y-6">
-          <h2 className="text-xl font-serif font-semibold text-brown text-center">Set New Password</h2>
+          <h2 className="text-xl font-serif font-semibold text-brown text-center">{t('auth.reset.setNewPassword')}</h2>
 
           {success ? (
             <div className="space-y-4">
               <div className="bg-sage/10 border border-sage/30 px-4 py-3 rounded-lg text-sm text-sage-dark text-center">
-                Password reset successfully! Redirecting to login...
+                {t('auth.reset.successMessage')}
               </div>
               <Link to="/login" className="block text-center text-sm text-burgundy hover:text-burgundy-light">
-                Go to Login
+                {t('auth.reset.goToLogin')}
               </Link>
             </div>
           ) : (
@@ -71,7 +73,7 @@ export function ResetPasswordPage() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-brown mb-1">New Password</label>
+                  <label className="block text-sm font-medium text-brown mb-1">{t('auth.reset.newPassword')}</label>
                   <input
                     type="password"
                     value={password}
@@ -82,7 +84,7 @@ export function ResetPasswordPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-brown mb-1">Confirm Password</label>
+                  <label className="block text-sm font-medium text-brown mb-1">{t('auth.reset.confirmPassword')}</label>
                   <input
                     type="password"
                     value={confirmPassword}
@@ -97,12 +99,12 @@ export function ResetPasswordPage() {
                   disabled={submitting}
                   className="w-full py-2.5 bg-burgundy hover:bg-burgundy-light text-white rounded-lg transition-colors font-medium disabled:opacity-50"
                 >
-                  {submitting ? 'Resetting...' : 'Reset Password'}
+                  {submitting ? t('auth.reset.resetting') : t('auth.reset.resetPassword')}
                 </button>
               </form>
 
               <Link to="/login" className="block text-center text-sm text-burgundy hover:text-burgundy-light">
-                Back to Login
+                {t('auth.forgot.backToLogin')}
               </Link>
             </>
           )}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { BookOpen, Plus, Search, CheckCircle, ArrowUpDown } from 'lucide-react';
 import type { BookResponse, CreateBookRequest } from '@readingcircle/shared';
@@ -11,6 +12,7 @@ type SortValue = 'title' | 'author' | 'year' | 'recent' | 'voted-down';
 const emptyBook: CreateBookRequest = { title: '', author: '', year: '', country: '', originalLanguage: '', type: '', introduction: '' };
 
 export function BooksPage() {
+  const { t } = useTranslation();
   const [books, setBooks] = useState<BookResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -98,7 +100,7 @@ export function BooksPage() {
   };
 
   if (loading) {
-    return <div className="text-brown-light animate-pulse font-serif text-lg">Loading books...</div>;
+    return <div className="text-brown-light animate-pulse font-serif text-lg">{t('common.loading')}</div>;
   }
 
   const inputClass = "w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition";
@@ -106,26 +108,26 @@ export function BooksPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-3xl font-serif font-bold text-burgundy">Reading List</h1>
+        <h1 className="text-3xl font-serif font-bold text-burgundy">{t('books.title')}</h1>
         <button
           onClick={() => setShowAdd(!showAdd)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-burgundy hover:bg-burgundy-light text-white rounded-lg transition-colors text-sm font-medium"
         >
           <Plus className="w-4 h-4" />
-          Add Book
+          {t('books.addBook')}
         </button>
       </div>
 
       {/* Add book form */}
       {showAdd && (
         <form onSubmit={handleAdd} className="bg-white rounded-xl border border-warm-gray p-6 space-y-4">
-          <h3 className="font-serif font-semibold text-brown text-lg">Add a New Book</h3>
+          <h3 className="font-serif font-semibold text-brown text-lg">{t('books.addNewBook')}</h3>
           {error && (
             <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{error}</div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-brown mb-1">Title *</label>
+              <label className="block text-sm font-medium text-brown mb-1">{t('books.titleLabel')} *</label>
               <input
                 type="text"
                 value={newBook.title}
@@ -135,7 +137,7 @@ export function BooksPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-brown mb-1">Author *</label>
+              <label className="block text-sm font-medium text-brown mb-1">{t('books.authorLabel')} *</label>
               <input
                 type="text"
                 value={newBook.author}
@@ -147,7 +149,7 @@ export function BooksPage() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-brown mb-1">Year</label>
+              <label className="block text-sm font-medium text-brown mb-1">{t('books.yearLabel')}</label>
               <input
                 type="text"
                 value={newBook.year || ''}
@@ -158,7 +160,7 @@ export function BooksPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-brown mb-1">Country</label>
+              <label className="block text-sm font-medium text-brown mb-1">{t('books.countryLabel')}</label>
               <input
                 type="text"
                 value={newBook.country || ''}
@@ -168,7 +170,7 @@ export function BooksPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-brown mb-1">Original Language</label>
+              <label className="block text-sm font-medium text-brown mb-1">{t('books.originalLanguageLabel')}</label>
               <input
                 type="text"
                 value={newBook.originalLanguage || ''}
@@ -178,19 +180,19 @@ export function BooksPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-brown mb-1">Type</label>
+              <label className="block text-sm font-medium text-brown mb-1">{t('books.typeLabel')}</label>
               <select
                 value={newBook.type || ''}
                 onChange={e => setNewBook({ ...newBook, type: e.target.value })}
                 className={inputClass}
               >
                 <option value="">--</option>
-                {BOOK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                {BOOK_TYPES.map(bt => <option key={bt} value={bt}>{bt}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-brown mb-1">Introduction</label>
+            <label className="block text-sm font-medium text-brown mb-1">{t('books.introductionLabel')}</label>
             <textarea
               value={newBook.introduction || ''}
               onChange={e => setNewBook({ ...newBook, introduction: e.target.value })}
@@ -204,14 +206,14 @@ export function BooksPage() {
               disabled={saving}
               className="px-4 py-2 bg-burgundy hover:bg-burgundy-light text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
             >
-              {saving ? 'Adding...' : 'Add Book'}
+              {saving ? t('books.adding') : t('books.addBook')}
             </button>
             <button
               type="button"
               onClick={() => setShowAdd(false)}
               className="px-4 py-2 text-brown hover:bg-warm-gray-light rounded-lg transition-colors text-sm"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         </form>
@@ -226,7 +228,7 @@ export function BooksPage() {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search books by title or author..."
+              placeholder={t('books.searchPlaceholder')}
               className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-warm-gray bg-white text-brown placeholder:text-brown-lighter focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition"
             />
           </div>
@@ -236,20 +238,20 @@ export function BooksPage() {
               onChange={e => setFilter(e.target.value as FilterValue)}
               className="px-3 py-2.5 rounded-lg border border-warm-gray bg-white text-brown text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30"
             >
-              <option value="all">All Books</option>
-              <option value="read">Read</option>
-              <option value="unread">Unread</option>
+              <option value="all">{t('books.allBooks')}</option>
+              <option value="read">{t('books.read')}</option>
+              <option value="unread">{t('books.unread')}</option>
             </select>
             <select
               value={sort}
               onChange={e => setSort(e.target.value as SortValue)}
               className="px-3 py-2.5 rounded-lg border border-warm-gray bg-white text-brown text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30"
             >
-              <option value="title">Sort: Title A-Z</option>
-              <option value="author">Sort: Author A-Z</option>
-              <option value="year">Sort: Year</option>
-              <option value="recent">Sort: Recently Added</option>
-              <option value="voted-down">Sort: Most Nominated</option>
+              <option value="title">{t('books.sortTitle')}</option>
+              <option value="author">{t('books.sortAuthor')}</option>
+              <option value="year">{t('books.sortYear')}</option>
+              <option value="recent">{t('books.sortRecent')}</option>
+              <option value="voted-down">{t('books.sortNominated')}</option>
             </select>
           </div>
         </div>
@@ -260,8 +262,8 @@ export function BooksPage() {
               onChange={e => setTypeFilter(e.target.value)}
               className="px-3 py-2 rounded-lg border border-warm-gray bg-white text-brown text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30"
             >
-              <option value="all">All Types</option>
-              {filterOptions.types.map(t => <option key={t} value={t}>{t}</option>)}
+              <option value="all">{t('books.allTypes')}</option>
+              {filterOptions.types.map(tp => <option key={tp} value={tp}>{tp}</option>)}
             </select>
           )}
           {filterOptions.countries.length > 0 && (
@@ -270,7 +272,7 @@ export function BooksPage() {
               onChange={e => setCountryFilter(e.target.value)}
               className="px-3 py-2 rounded-lg border border-warm-gray bg-white text-brown text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30"
             >
-              <option value="all">All Countries</option>
+              <option value="all">{t('books.allCountries')}</option>
               {filterOptions.countries.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           )}
@@ -280,19 +282,19 @@ export function BooksPage() {
               onChange={e => setLanguageFilter(e.target.value)}
               className="px-3 py-2 rounded-lg border border-warm-gray bg-white text-brown text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30"
             >
-              <option value="all">All Languages</option>
+              <option value="all">{t('books.allLanguages')}</option>
               {filterOptions.languages.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           )}
         </div>
-        <p className="text-sm text-brown-light">{displayedBooks.length} {displayedBooks.length === 1 ? 'book' : 'books'}</p>
+        <p className="text-sm text-brown-light">{t('books.count', { count: displayedBooks.length })}</p>
       </div>
 
       {/* Book list */}
       {displayedBooks.length === 0 ? (
         <div className="bg-white rounded-xl border border-warm-gray p-12 text-center">
           <BookOpen className="w-12 h-12 text-brown-lighter mx-auto mb-3" />
-          <p className="text-brown-light">{books.length === 0 ? 'No books on the list yet' : 'No books match your search'}</p>
+          <p className="text-brown-light">{books.length === 0 ? t('books.noBooksYet') : t('books.noMatchingBooks')}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -311,16 +313,16 @@ export function BooksPage() {
                     <h3 className="font-serif font-semibold text-brown text-lg">{book.title}</h3>
                     {book.isRead && (
                       <span className="inline-flex items-center gap-1 text-xs text-sage-dark bg-sage/20 px-2 py-0.5 rounded-full">
-                        <CheckCircle className="w-3 h-3" /> Read
+                        <CheckCircle className="w-3 h-3" /> {t('books.read')}
                       </span>
                     )}
                     {book.candidateCount > 0 && (
                       <span className="inline-flex items-center gap-1 text-xs text-brown-light bg-warm-gray px-2 py-0.5 rounded-full">
-                        <ArrowUpDown className="w-3 h-3" /> {book.candidateCount}x nominated
+                        <ArrowUpDown className="w-3 h-3" /> {t('books.nominated', { count: book.candidateCount })}
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-brown-light mt-0.5">by {book.author}</p>
+                  <p className="text-sm text-brown-light mt-0.5">{t('common.by')} {book.author}</p>
                   {(book.year || book.country || book.originalLanguage || book.type) && (
                     <div className="flex flex-wrap gap-2 mt-1.5">
                       {book.year && <span className="text-xs text-brown-light bg-warm-gray-light px-2 py-0.5 rounded">{book.year}</span>}
@@ -332,7 +334,7 @@ export function BooksPage() {
                   {book.introduction && (
                     <p className="text-sm text-brown mt-2 line-clamp-2">{book.introduction}</p>
                   )}
-                  <p className="text-xs text-brown-lighter mt-2">Added by {book.addedByUsername}</p>
+                  <p className="text-xs text-brown-lighter mt-2">{t('books.addedBy', { name: book.addedByUsername })}</p>
                 </div>
               </div>
             </Link>

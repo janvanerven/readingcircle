@@ -3,18 +3,21 @@ import { useAuth } from '@/lib/auth';
 import { BookOpen, Users, Calendar, Home, LogOut, Menu, X, Shield, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-
-const baseNavItems = [
-  { to: '/', icon: Home, label: 'Home' },
-  { to: '/books', icon: BookOpen, label: 'Reading List' },
-  { to: '/meets', icon: Calendar, label: 'Meets' },
-  { to: '/members', icon: Users, label: 'Members' },
-];
+import { useTranslation } from 'react-i18next';
 
 export function Layout() {
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
+
+  const baseNavItems = [
+    { to: '/', icon: Home, label: t('nav.home') },
+    { to: '/books', icon: BookOpen, label: t('nav.readingList') },
+    { to: '/meets', icon: Calendar, label: t('nav.meets') },
+    { to: '/members', icon: Users, label: t('nav.members') },
+  ];
+
   const navItems = user?.isAdmin
-    ? [...baseNavItems, { to: '/admin', icon: Shield, label: 'Admin' }]
+    ? [...baseNavItems, { to: '/admin', icon: Shield, label: t('nav.admin') }]
     : baseNavItems;
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -32,7 +35,7 @@ export function Layout() {
           <div className="flex items-center justify-between h-16">
             <NavLink to="/" className="flex items-center gap-2">
               <BookOpen className="w-7 h-7 text-burgundy" />
-              <span className="font-serif text-xl font-semibold text-burgundy">Reading Circle</span>
+              <span className="font-serif text-xl font-semibold text-burgundy">{t('nav.readingCircle')}</span>
             </NavLink>
 
             {/* Desktop nav */}
@@ -59,20 +62,20 @@ export function Layout() {
               <span className="text-sm text-brown-light">
                 {user?.username}
                 {user?.isAdmin && (
-                  <span className="ml-1 text-xs bg-burgundy/10 text-burgundy px-2 py-0.5 rounded-full">Admin</span>
+                  <span className="ml-1 text-xs bg-burgundy/10 text-burgundy px-2 py-0.5 rounded-full">{t('common.admin')}</span>
                 )}
               </span>
               <NavLink
                 to="/settings"
                 className="p-2 text-brown-light hover:text-burgundy transition-colors rounded-lg hover:bg-warm-gray-light"
-                title="Settings"
+                title={t('nav.settings')}
               >
                 <Settings className="w-4 h-4" />
               </NavLink>
               <button
                 onClick={handleLogout}
                 className="p-2 text-brown-light hover:text-burgundy transition-colors rounded-lg hover:bg-warm-gray-light"
-                title="Logout"
+                title={t('nav.logout')}
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -111,9 +114,9 @@ export function Layout() {
               ))}
               <div className="border-t border-warm-gray pt-3 mt-3">
                 <div className="px-4 py-2 text-sm text-brown-light">
-                  Signed in as <strong>{user?.username}</strong>
+                  {t('nav.signedInAs')} <strong>{user?.username}</strong>
                   {user?.isAdmin && (
-                    <span className="ml-1 text-xs bg-burgundy/10 text-burgundy px-2 py-0.5 rounded-full">Admin</span>
+                    <span className="ml-1 text-xs bg-burgundy/10 text-burgundy px-2 py-0.5 rounded-full">{t('common.admin')}</span>
                   )}
                 </div>
                 <NavLink
@@ -122,14 +125,14 @@ export function Layout() {
                   className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-brown hover:bg-warm-gray-light"
                 >
                   <Settings className="w-5 h-5" />
-                  Settings
+                  {t('nav.settings')}
                 </NavLink>
                 <button
                   onClick={handleLogout}
                   className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-brown hover:bg-warm-gray-light"
                 >
                   <LogOut className="w-5 h-5" />
-                  Logout
+                  {t('nav.logout')}
                 </button>
               </div>
             </nav>

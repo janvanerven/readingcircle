@@ -4,8 +4,10 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { BookOpen } from 'lucide-react';
 import { PASSWORD_REQUIREMENTS } from '@readingcircle/shared';
+import { useTranslation } from 'react-i18next';
 
 export function JoinPage() {
+  const { t } = useTranslation();
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const { updateUser } = useAuth();
@@ -36,13 +38,13 @@ export function JoinPage() {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('auth.passwordsDoNotMatch'));
       return;
     }
 
     setSubmitting(true);
     try {
-      const data = await api<{ accessToken: string; user: { id: string; username: string; isAdmin: boolean; isTemporary: boolean } }>('/auth/register', {
+      const data = await api<{ accessToken: string; user: { id: string; username: string; isAdmin: boolean; isTemporary: boolean; locale: string } }>('/auth/register', {
         method: 'POST',
         body: JSON.stringify({ token, username, password }),
       });
@@ -58,7 +60,7 @@ export function JoinPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
-        <div className="text-brown-light animate-pulse font-serif text-xl">Validating invitation...</div>
+        <div className="text-brown-light animate-pulse font-serif text-xl">{t('auth.join.validating')}</div>
       </div>
     );
   }
@@ -68,8 +70,8 @@ export function JoinPage() {
       <div className="min-h-screen bg-cream flex items-center justify-center px-4">
         <div className="text-center">
           <BookOpen className="w-12 h-12 text-burgundy mx-auto mb-4" />
-          <h1 className="text-2xl font-serif font-bold text-burgundy mb-2">Invalid Invitation</h1>
-          <p className="text-brown-light">{error || 'This invitation link is invalid or has expired.'}</p>
+          <h1 className="text-2xl font-serif font-bold text-burgundy mb-2">{t('auth.join.invalidInvitation')}</h1>
+          <p className="text-brown-light">{error || t('auth.join.invalidInvitationDesc')}</p>
         </div>
       </div>
     );
@@ -82,9 +84,9 @@ export function JoinPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-burgundy rounded-full mb-4">
             <BookOpen className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-serif font-bold text-burgundy">Join Reading Circle</h1>
+          <h1 className="text-3xl font-serif font-bold text-burgundy">{t('auth.join.title')}</h1>
           <p className="text-brown-light mt-2">
-            <strong>{invitation.invitedByUsername}</strong> invited you to join
+            {t('auth.join.invitedBy', { name: invitation.invitedByUsername })}
           </p>
         </div>
 
@@ -96,7 +98,7 @@ export function JoinPage() {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-brown mb-1.5">Email</label>
+            <label className="block text-sm font-medium text-brown mb-1.5">{t('auth.join.email')}</label>
             <input
               type="email"
               value={invitation.email}
@@ -107,7 +109,7 @@ export function JoinPage() {
 
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-brown mb-1.5">
-              Choose a Username
+              {t('auth.join.chooseUsername')}
             </label>
             <input
               id="username"
@@ -122,7 +124,7 @@ export function JoinPage() {
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-brown mb-1.5">
-              Password
+              {t('auth.password')}
             </label>
             <input
               id="password"
@@ -137,7 +139,7 @@ export function JoinPage() {
 
           <div>
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-brown mb-1.5">
-              Confirm Password
+              {t('auth.confirmPassword')}
             </label>
             <input
               id="confirmPassword"
@@ -154,7 +156,7 @@ export function JoinPage() {
             disabled={submitting}
             className="w-full py-2.5 bg-burgundy hover:bg-burgundy-light text-white font-medium rounded-lg transition-colors disabled:opacity-50"
           >
-            {submitting ? 'Creating account...' : 'Join the Circle'}
+            {submitting ? t('auth.join.creatingAccount') : t('auth.join.joinTheCircle')}
           </button>
         </form>
       </div>

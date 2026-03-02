@@ -5,8 +5,10 @@ import { useAuth } from '@/lib/auth';
 import { ArrowLeft, Shield, Calendar, BookOpen, User } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import type { MemberProfileResponse } from '@readingcircle/shared';
+import { useTranslation } from 'react-i18next';
 
 export function MemberProfilePage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [profile, setProfile] = useState<MemberProfileResponse | null>(null);
@@ -20,14 +22,14 @@ export function MemberProfilePage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div className="text-brown-light animate-pulse font-serif text-lg">Loading...</div>;
-  if (!profile) return <div className="text-brown-light">Member not found.</div>;
+  if (loading) return <div className="text-brown-light animate-pulse font-serif text-lg">{t('common.loading')}</div>;
+  if (!profile) return <div className="text-brown-light">{t('memberProfile.memberNotFound')}</div>;
 
   return (
     <div className="space-y-6">
       <Link to="/members" className="inline-flex items-center gap-2 text-brown-light hover:text-burgundy transition-colors text-sm">
         <ArrowLeft className="w-4 h-4" />
-        Back to Members
+        {t('memberProfile.backToMembers')}
       </Link>
 
       <div className="bg-white rounded-xl border border-warm-gray p-6">
@@ -41,23 +43,23 @@ export function MemberProfilePage() {
               {profile.isAdmin && (
                 <span className="text-xs bg-burgundy/10 text-burgundy px-2 py-0.5 rounded-full flex items-center gap-1">
                   <Shield className="w-3 h-3" />
-                  Admin
+                  {t('common.admin')}
                 </span>
               )}
               {profile.id === user?.id && (
-                <span className="text-xs text-brown-lighter">(you)</span>
+                <span className="text-xs text-brown-lighter">{t('common.you')}</span>
               )}
             </div>
-            <p className="text-sm text-brown-lighter mt-1">Member since {formatDate(profile.createdAt)}</p>
+            <p className="text-sm text-brown-lighter mt-1">{t('memberProfile.memberSince', { date: formatDate(profile.createdAt) })}</p>
 
             <div className="flex items-center gap-6 mt-4">
               <div className="flex items-center gap-2 text-sm text-brown-light">
                 <Calendar className="w-4 h-4" />
-                <span>Hosted <strong className="text-brown">{profile.hostCount}</strong> meet{profile.hostCount !== 1 ? 's' : ''}</span>
+                <span>{t('memberProfile.hosted', { count: profile.hostCount })}</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-brown-light">
                 <BookOpen className="w-4 h-4" />
-                <span><strong className="text-brown">{profile.readBooks.length}</strong> book{profile.readBooks.length !== 1 ? 's' : ''} read</span>
+                <span>{t('memberProfile.booksRead', { count: profile.readBooks.length })}</span>
               </div>
             </div>
           </div>
@@ -66,7 +68,7 @@ export function MemberProfilePage() {
 
       {profile.readBooks.length > 0 && (
         <div className="bg-white rounded-xl border border-warm-gray p-6 space-y-4">
-          <h2 className="font-serif font-semibold text-brown text-lg">Books Read</h2>
+          <h2 className="font-serif font-semibold text-brown text-lg">{t('memberProfile.booksReadTitle')}</h2>
           <div className="divide-y divide-warm-gray-light">
             {profile.readBooks.map(book => (
               <Link
@@ -77,7 +79,7 @@ export function MemberProfilePage() {
                 <BookOpen className="w-4 h-4 text-burgundy flex-shrink-0" />
                 <div>
                   <span className="text-sm font-medium text-brown">{book.title}</span>
-                  <span className="text-sm text-brown-light ml-2">by {book.author}</span>
+                  <span className="text-sm text-brown-light ml-2">{t('common.by')} {book.author}</span>
                 </div>
               </Link>
             ))}

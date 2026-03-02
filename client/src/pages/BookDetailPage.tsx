@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { api, ApiError } from '@/lib/api';
 import { BookOpen, ArrowLeft, MessageSquare, Calendar, Pencil, Trash2, X, CheckCircle } from 'lucide-react';
@@ -10,6 +11,7 @@ import { BOOK_TYPES } from '@readingcircle/shared';
 export function BookDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [book, setBook] = useState<BookDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -126,14 +128,14 @@ export function BookDetailPage() {
   };
 
   if (loading) {
-    return <div className="text-brown-light animate-pulse font-serif text-lg">Loading...</div>;
+    return <div className="text-brown-light animate-pulse font-serif text-lg">{t('common.loading')}</div>;
   }
 
   if (!book) {
     return (
       <div className="text-center py-12">
         <BookOpen className="w-12 h-12 text-brown-lighter mx-auto mb-3" />
-        <p className="text-brown-light">Book not found</p>
+        <p className="text-brown-light">{t('bookDetail.bookNotFound')}</p>
       </div>
     );
   }
@@ -141,7 +143,7 @@ export function BookDetailPage() {
   return (
     <div className="space-y-6">
       <Link to="/books" className="inline-flex items-center gap-1 text-sm text-burgundy hover:text-burgundy-light">
-        <ArrowLeft className="w-4 h-4" /> Back to Reading List
+        <ArrowLeft className="w-4 h-4" /> {t('bookDetail.backToReadingList')}
       </Link>
 
       {/* Book info */}
@@ -149,7 +151,7 @@ export function BookDetailPage() {
         {editing ? (
           <form onSubmit={handleEdit} className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-serif font-semibold text-brown text-lg">Edit Book</h2>
+              <h2 className="font-serif font-semibold text-brown text-lg">{t('bookDetail.editBook')}</h2>
               <button type="button" onClick={() => setEditing(false)} className="text-brown-lighter hover:text-brown">
                 <X className="w-5 h-5" />
               </button>
@@ -159,7 +161,7 @@ export function BookDetailPage() {
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-brown mb-1">Title *</label>
+                <label className="block text-sm font-medium text-brown mb-1">{t('books.titleLabel')} *</label>
                 <input
                   type="text"
                   value={editForm.title}
@@ -169,7 +171,7 @@ export function BookDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-brown mb-1">Author *</label>
+                <label className="block text-sm font-medium text-brown mb-1">{t('books.authorLabel')} *</label>
                 <input
                   type="text"
                   value={editForm.author}
@@ -181,7 +183,7 @@ export function BookDetailPage() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium text-brown mb-1">Year</label>
+                <label className="block text-sm font-medium text-brown mb-1">{t('books.yearLabel')}</label>
                 <input
                   type="text"
                   value={editForm.year}
@@ -192,7 +194,7 @@ export function BookDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-brown mb-1">Country</label>
+                <label className="block text-sm font-medium text-brown mb-1">{t('books.countryLabel')}</label>
                 <input
                   type="text"
                   value={editForm.country}
@@ -202,7 +204,7 @@ export function BookDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-brown mb-1">Original Language</label>
+                <label className="block text-sm font-medium text-brown mb-1">{t('books.originalLanguageLabel')}</label>
                 <input
                   type="text"
                   value={editForm.originalLanguage}
@@ -212,19 +214,19 @@ export function BookDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-brown mb-1">Type</label>
+                <label className="block text-sm font-medium text-brown mb-1">{t('books.typeLabel')}</label>
                 <select
                   value={editForm.type}
                   onChange={e => setEditForm({ ...editForm, type: e.target.value })}
                   className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition"
                 >
                   <option value="">--</option>
-                  {BOOK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  {BOOK_TYPES.map(bt => <option key={bt} value={bt}>{bt}</option>)}
                 </select>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-brown mb-1">Introduction</label>
+              <label className="block text-sm font-medium text-brown mb-1">{t('books.introductionLabel')}</label>
               <textarea
                 value={editForm.introduction}
                 onChange={e => setEditForm({ ...editForm, introduction: e.target.value })}
@@ -238,14 +240,14 @@ export function BookDetailPage() {
                 disabled={editSaving}
                 className="px-4 py-2 bg-burgundy hover:bg-burgundy-light text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
               >
-                {editSaving ? 'Saving...' : 'Save Changes'}
+                {editSaving ? t('bookDetail.saving') : t('bookDetail.saveChanges')}
               </button>
               <button
                 type="button"
                 onClick={() => setEditing(false)}
                 className="px-4 py-2 text-brown hover:bg-warm-gray-light rounded-lg transition-colors text-sm"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
           </form>
@@ -257,7 +259,7 @@ export function BookDetailPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <h1 className="text-2xl sm:text-3xl font-serif font-bold text-brown">{book.title}</h1>
-                <p className="text-lg text-brown-light mt-1">by {book.author}</p>
+                <p className="text-lg text-brown-light mt-1">{t('common.by')} {book.author}</p>
                 {(book.year || book.country || book.originalLanguage || book.type) && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {book.year && <span className="text-xs text-brown-light bg-warm-gray-light px-2 py-0.5 rounded">{book.year}</span>}
@@ -276,9 +278,9 @@ export function BookDetailPage() {
                     }`}
                   >
                     <CheckCircle className="w-4 h-4" />
-                    {book.userHasRead ? 'Read' : 'Mark as Read'}
+                    {book.userHasRead ? t('bookDetail.read') : t('bookDetail.markAsRead')}
                   </button>
-                  <span className="text-sm text-brown-lighter">Added by {book.addedByUsername} on {formatDate(book.createdAt)}</span>
+                  <span className="text-sm text-brown-lighter">{t('bookDetail.addedByOn', { name: book.addedByUsername, date: formatDate(book.createdAt) })}</span>
                 </div>
               </div>
               {canEditOrDelete && (
@@ -286,7 +288,7 @@ export function BookDetailPage() {
                   <button
                     onClick={startEditing}
                     className="p-2 text-brown-lighter hover:text-burgundy hover:bg-burgundy/5 rounded-lg transition-colors"
-                    title="Edit book"
+                    title={t('bookDetail.editBook')}
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
@@ -294,7 +296,7 @@ export function BookDetailPage() {
                     <button
                       onClick={() => setShowDeleteConfirm(true)}
                       className="p-2 text-brown-lighter hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete book"
+                      title={t('common.delete')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -302,7 +304,7 @@ export function BookDetailPage() {
                     <button
                       disabled
                       className="p-2 text-brown-lighter/40 rounded-lg cursor-not-allowed"
-                      title="Cannot delete: book is used in a Meet"
+                      title={t('bookDetail.cannotDelete')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -321,7 +323,7 @@ export function BookDetailPage() {
         {/* Delete confirmation */}
         {showDeleteConfirm && (
           <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-700 mb-3">Are you sure you want to delete <strong>{book.title}</strong>? This action cannot be undone.</p>
+            <p className="text-sm text-red-700 mb-3">{t('bookDetail.deleteConfirm', { title: book.title })}</p>
             {deleteError && (
               <p className="text-sm text-red-600 mb-3">{deleteError}</p>
             )}
@@ -331,13 +333,13 @@ export function BookDetailPage() {
                 disabled={deleting}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
               >
-                {deleting ? 'Deleting...' : 'Yes, Delete'}
+                {deleting ? t('bookDetail.deleting') : t('bookDetail.yesDelete')}
               </button>
               <button
                 onClick={() => { setShowDeleteConfirm(false); setDeleteError(''); }}
                 className="px-4 py-2 text-brown hover:bg-warm-gray-light rounded-lg transition-colors text-sm"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
           </div>
@@ -349,17 +351,17 @@ export function BookDetailPage() {
         <div className="bg-white rounded-xl border border-warm-gray p-6">
           <h2 className="font-serif font-semibold text-brown mb-3 flex items-center gap-2">
             <Calendar className="w-5 h-5 text-burgundy" />
-            Selected in Meets
+            {t('bookDetail.selectedInMeets')}
           </h2>
           {book.selectedInMeets.length === 0 ? (
-            <p className="text-sm text-brown-light">Not yet selected for any meet</p>
+            <p className="text-sm text-brown-light">{t('bookDetail.notSelectedYet')}</p>
           ) : (
             <ul className="space-y-2">
               {book.selectedInMeets.map(m => (
                 <li key={m.id}>
                   <Link to={`/meets/${m.id}`} className="text-sm text-burgundy hover:text-burgundy-light flex items-center justify-between">
                     <span>{m.label}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${phaseColors[m.phase]}`}>{m.phase}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${phaseColors[m.phase]}`}>{t('meets.phases.' + m.phase)}</span>
                   </Link>
                 </li>
               ))}
@@ -370,17 +372,17 @@ export function BookDetailPage() {
         <div className="bg-white rounded-xl border border-warm-gray p-6">
           <h2 className="font-serif font-semibold text-brown mb-3 flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-sage" />
-            Candidate in Meets
+            {t('bookDetail.candidateInMeets')}
           </h2>
           {book.candidateInMeets.length === 0 ? (
-            <p className="text-sm text-brown-light">Not a candidate in any meet</p>
+            <p className="text-sm text-brown-light">{t('bookDetail.notCandidateYet')}</p>
           ) : (
             <ul className="space-y-2">
               {book.candidateInMeets.map(m => (
                 <li key={m.id}>
                   <Link to={`/meets/${m.id}`} className="text-sm text-burgundy hover:text-burgundy-light flex items-center justify-between">
                     <span>{m.label}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${phaseColors[m.phase]}`}>{m.phase}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${phaseColors[m.phase]}`}>{t('meets.phases.' + m.phase)}</span>
                   </Link>
                 </li>
               ))}
@@ -393,7 +395,7 @@ export function BookDetailPage() {
       <div className="bg-white rounded-xl border border-warm-gray p-6">
         <h2 className="font-serif font-semibold text-brown mb-4 flex items-center gap-2">
           <MessageSquare className="w-5 h-5 text-brown-light" />
-          Comments ({book.comments.length})
+          {t('bookDetail.comments', { count: book.comments.length })}
         </h2>
 
         {book.comments.length > 0 && (
@@ -415,7 +417,7 @@ export function BookDetailPage() {
             type="text"
             value={comment}
             onChange={e => setComment(e.target.value)}
-            placeholder="Add a comment..."
+            placeholder={t('bookDetail.addComment')}
             className="flex-1 px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown placeholder:text-brown-lighter focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition"
           />
           <button
@@ -423,7 +425,7 @@ export function BookDetailPage() {
             disabled={submitting || !comment.trim()}
             className="px-4 py-2 bg-burgundy hover:bg-burgundy-light text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
           >
-            Post
+            {t('common.post')}
           </button>
         </form>
       </div>

@@ -4,8 +4,10 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { Users, Shield, Calendar, BookOpen } from 'lucide-react';
 import type { MemberSummaryResponse } from '@readingcircle/shared';
+import { useTranslation } from 'react-i18next';
 
 export function MembersPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [members, setMembers] = useState<MemberSummaryResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,13 +19,13 @@ export function MembersPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="text-brown-light animate-pulse font-serif text-lg">Loading...</div>;
+  if (loading) return <div className="text-brown-light animate-pulse font-serif text-lg">{t('common.loading')}</div>;
 
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-serif font-bold text-burgundy flex items-center gap-3">
         <Users className="w-8 h-8" />
-        Members
+        {t('members.title')}
       </h1>
 
       <div className="bg-white rounded-xl border border-warm-gray divide-y divide-warm-gray-light">
@@ -43,21 +45,21 @@ export function MembersPage() {
                   {m.isAdmin && (
                     <span className="text-xs bg-burgundy/10 text-burgundy px-2 py-0.5 rounded-full flex items-center gap-1">
                       <Shield className="w-3 h-3" />
-                      Admin
+                      {t('common.admin')}
                     </span>
                   )}
                   {m.id === user?.id && (
-                    <span className="text-xs text-brown-lighter">(you)</span>
+                    <span className="text-xs text-brown-lighter">{t('common.you')}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-4 mt-1">
                   <span className="text-xs text-brown-light flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
-                    Hosted {m.hostCount} meet{m.hostCount !== 1 ? 's' : ''}
+                    {t('members.hosted', { count: m.hostCount })}
                   </span>
                   <span className="text-xs text-brown-light flex items-center gap-1">
                     <BookOpen className="w-3 h-3" />
-                    {m.readBookCount} book{m.readBookCount !== 1 ? 's' : ''} read
+                    {t('members.booksRead', { count: m.readBookCount })}
                   </span>
                 </div>
               </div>

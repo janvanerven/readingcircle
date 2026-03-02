@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDateTime, toLocalDateTimeInput } from '@/lib/utils';
@@ -8,6 +9,7 @@ import type { MeetDetailResponse, BookResponse, Top5EntryResponse, AggregatedRan
 import { VOTING_POINTS_TOTAL } from '@readingcircle/shared';
 
 export function MeetDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -38,8 +40,8 @@ export function MeetDetailPage() {
 
   useEffect(() => { loadMeet(); }, [loadMeet]);
 
-  if (loading) return <div className="text-brown-light animate-pulse font-serif text-lg">Loading...</div>;
-  if (!meet) return <div className="text-center py-12"><p className="text-brown-light">Meet not found</p></div>;
+  if (loading) return <div className="text-brown-light animate-pulse font-serif text-lg">{t('common.loading')}</div>;
+  if (!meet) return <div className="text-center py-12"><p className="text-brown-light">{t('meetDetail.meetNotFound')}</p></div>;
 
   const isHostOrAdmin = meet.hostId === user?.id || user?.isAdmin;
 
@@ -54,7 +56,7 @@ export function MeetDetailPage() {
   return (
     <div className="space-y-6">
       <Link to="/meets" className="inline-flex items-center gap-1 text-sm text-burgundy hover:text-burgundy-light">
-        <ArrowLeft className="w-4 h-4" /> Back to Meets
+        <ArrowLeft className="w-4 h-4" /> {t('meetDetail.backToMeets')}
       </Link>
 
       {/* Header */}
@@ -63,7 +65,7 @@ export function MeetDetailPage() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-serif font-bold text-brown">{meet.label}</h1>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-brown-light">
-              <span>Host: {meet.hostUsername}</span>
+              <span>{t('meetDetail.host', { name: meet.hostUsername })}</span>
               {meet.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {meet.location}</span>}
               {meet.selectedDate && <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {formatDateTime(meet.selectedDate)}</span>}
             </div>
@@ -112,10 +114,11 @@ export function MeetDetailPage() {
 // --- Sub-components ---
 
 function PhaseControls({ meet, onUpdate, navigate }: { meet: MeetDetailResponse; onUpdate: () => void; navigate: (path: string) => void }) {
+  const { t } = useTranslation();
   const [changing, setChanging] = useState(false);
 
   const changePhase = async (phase: string) => {
-    if (!confirm(`Are you sure you want to move this meet to "${phase}"?`)) return;
+    if (!confirm(t('meetDetail.confirmPhaseChange', { phase }))) return;
     setChanging(true);
     try {
       await api(`/meets/${meet.id}/phase`, { method: 'POST', body: JSON.stringify({ phase }) });
@@ -128,7 +131,7 @@ function PhaseControls({ meet, onUpdate, navigate }: { meet: MeetDetailResponse;
   };
 
   const deleteMeet = async () => {
-    if (!confirm('Are you sure you want to delete this meet?')) return;
+    if (!confirm(t('meetDetail.confirmDelete'))) return;
     try {
       await api(`/meets/${meet.id}`, { method: 'DELETE' });
       navigate('/meets');
@@ -141,16 +144,16 @@ function PhaseControls({ meet, onUpdate, navigate }: { meet: MeetDetailResponse;
 
   const transitions: Record<string, { label: string; phase: string; color: string }[]> = {
     draft: hasBookAndDate
-      ? [{ label: 'Start Reading', phase: 'reading', color: 'bg-sage text-white' }]
+      ? [{ label: t('meetDetail.startReading'), phase: 'reading', color: 'bg-sage text-white' }]
       : [
-          { label: 'Start Voting', phase: 'voting', color: 'bg-burgundy text-white' },
-          { label: 'Skip to Reading', phase: 'reading', color: 'bg-sage text-white' },
+          { label: t('meetDetail.startVoting'), phase: 'voting', color: 'bg-burgundy text-white' },
+          { label: t('meetDetail.skipToReading'), phase: 'reading', color: 'bg-sage text-white' },
         ],
     voting: [
-      { label: 'Move to Reading', phase: 'reading', color: 'bg-sage text-white' },
+      { label: t('meetDetail.moveToReading'), phase: 'reading', color: 'bg-sage text-white' },
     ],
     reading: [
-      { label: 'Complete', phase: 'completed', color: 'bg-sage text-white' },
+      { label: t('meetDetail.complete'), phase: 'completed', color: 'bg-sage text-white' },
     ],
   };
 
@@ -160,7 +163,7 @@ function PhaseControls({ meet, onUpdate, navigate }: { meet: MeetDetailResponse;
     return (
       <div className="flex flex-wrap gap-2 mt-5 pt-5 border-t border-warm-gray-light">
         <button onClick={deleteMeet} className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-1.5">
-          <Trash2 className="w-4 h-4" /> Delete Meet
+          <Trash2 className="w-4 h-4" /> {t('meetDetail.deleteMeet')}
         </button>
       </div>
     );
@@ -168,15 +171,15 @@ function PhaseControls({ meet, onUpdate, navigate }: { meet: MeetDetailResponse;
 
   return (
     <div className="flex flex-wrap gap-2 mt-5 pt-5 border-t border-warm-gray-light">
-      {available.map(t => (
-        <button key={t.phase} onClick={() => changePhase(t.phase)} disabled={changing}
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${t.color} hover:opacity-90 disabled:opacity-50`}>
-          {t.label}
+      {available.map(tr => (
+        <button key={tr.phase} onClick={() => changePhase(tr.phase)} disabled={changing}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${tr.color} hover:opacity-90 disabled:opacity-50`}>
+          {tr.label}
         </button>
       ))}
       <button onClick={() => changePhase('cancelled')} disabled={changing}
         className="px-4 py-2 rounded-lg text-sm font-medium text-brown hover:bg-warm-gray-light">
-        Cancel Meet
+        {t('meetDetail.cancelMeet')}
       </button>
       <button onClick={deleteMeet} className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 ml-auto">
         <Trash2 className="w-4 h-4" />
@@ -190,6 +193,7 @@ type BookFilterValue = 'unread' | 'read' | 'all';
 function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
   meet: MeetDetailResponse; books: BookResponse[]; isHostOrAdmin: boolean; onUpdate: () => void;
 }) {
+  const { t } = useTranslation();
   const [showAddCandidate, setShowAddCandidate] = useState(false);
   const [selectedBookId, setSelectedBookId] = useState('');
   const [motivation, setMotivation] = useState('');
@@ -257,12 +261,12 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-serif font-semibold text-brown text-lg flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-burgundy" />
-          {meet.selectedBookId ? 'Selected Book' : 'Book Candidates'}
+          {meet.selectedBookId ? t('meetDetail.selectedBook') : t('meetDetail.bookCandidates')}
         </h2>
         {isHostOrAdmin && meet.phase === 'draft' && (
           <button onClick={() => setShowAddCandidate(!showAddCandidate)}
             className="text-sm text-burgundy hover:text-burgundy-light font-medium">
-            + Add Candidate
+            {t('meetDetail.addCandidate')}
           </button>
         )}
       </div>
@@ -281,24 +285,24 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
           <div className="flex gap-2">
             <select value={selectedBookId} onChange={e => setSelectedBookId(e.target.value)}
               className="flex-1 px-4 py-2.5 rounded-lg border border-warm-gray bg-white text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 transition">
-              <option value="">Select a book...</option>
+              <option value="">{t('meetDetail.selectABook')}</option>
               {availableBooks.map(b => <option key={b.id} value={b.id}>{b.title} — {b.author}</option>)}
             </select>
             <select value={bookFilter} onChange={e => { setBookFilter(e.target.value as BookFilterValue); setSelectedBookId(''); }}
               className="px-3 py-2.5 rounded-lg border border-warm-gray bg-white text-brown text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30">
-              <option value="unread">Unread</option>
-              <option value="read">Read</option>
-              <option value="all">All Books</option>
+              <option value="unread">{t('meetDetail.unread')}</option>
+              <option value="read">{t('bookDetail.read')}</option>
+              <option value="all">{t('meetDetail.allBooks')}</option>
             </select>
           </div>
           <input type="text" value={motivation} onChange={e => setMotivation(e.target.value)}
-            placeholder="Motivation (optional)"
+            placeholder={t('meetDetail.motivation')}
             className="w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-white text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 transition" />
           <div className="flex gap-2">
             <button type="submit" disabled={adding || !selectedBookId}
-              className="px-4 py-2 bg-burgundy text-white rounded-lg text-sm font-medium disabled:opacity-50">Add</button>
+              className="px-4 py-2 bg-burgundy text-white rounded-lg text-sm font-medium disabled:opacity-50">{t('common.add')}</button>
             <button type="button" onClick={() => setShowAddCandidate(false)}
-              className="px-4 py-2 text-brown hover:bg-warm-gray-light rounded-lg text-sm">Cancel</button>
+              className="px-4 py-2 text-brown hover:bg-warm-gray-light rounded-lg text-sm">{t('common.cancel')}</button>
           </div>
         </form>
       )}
@@ -316,41 +320,41 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
                     <Link to={`/books/${c.bookId}`} className="font-medium text-brown hover:text-burgundy">{c.bookTitle}</Link>
                     {c.alreadySelectedInMeet && (
                       <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                        <AlertTriangle className="w-3 h-3" /> Already selected before
+                        <AlertTriangle className="w-3 h-3" /> {t('meetDetail.alreadySelected')}
                       </span>
                     )}
                     {canSelectAfterReveal && isTopCandidate && (
                       <span className="inline-flex items-center gap-1 text-xs text-sage-dark bg-sage/20 px-2 py-0.5 rounded-full">
-                        Top voted
+                        {t('meetDetail.topVoted')}
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-brown-light">by {c.bookAuthor}
-                    {(() => { const book = books.find(b => b.id === c.bookId); return book && book.candidateCount > 1 ? ` — ${book.candidateCount}x nominated` : ''; })()}
+                  <p className="text-sm text-brown-light">{t('common.by')} {c.bookAuthor}
+                    {(() => { const book = books.find(b => b.id === c.bookId); return book && book.candidateCount > 1 ? ` — ${t('books.nominated', { count: book.candidateCount })}` : ''; })()}
                   </p>
                   {c.motivation && <p className="text-sm text-brown-light mt-1 italic">"{c.motivation}"</p>}
                   {c.readByUsers && c.readByUsers.length > 0 && (
                     <p className="text-xs text-sage-dark mt-1">
-                      Read by: {c.readByUsers.map(u => u.username).join(', ')}
+                      {t('meetDetail.readBy', { names: c.readByUsers.map(u => u.username).join(', ') })}
                     </p>
                   )}
                   {c.points !== undefined && (
-                    <p className="text-sm font-medium text-burgundy mt-1">{c.points} points</p>
+                    <p className="text-sm font-medium text-burgundy mt-1">{t('meetDetail.points', { count: c.points })}</p>
                   )}
                 </div>
                 <div className="flex gap-1">
                   {/* Draft: select only if single candidate */}
                   {isHostOrAdmin && canSelectInDraft && (
-                    <button onClick={() => selectBook(c.bookId)} title="Select this book"
+                    <button onClick={() => selectBook(c.bookId)} title={t('meetDetail.selectThisBook')}
                       className="p-1.5 text-sage hover:bg-sage/20 rounded-lg"><Check className="w-4 h-4" /></button>
                   )}
                   {/* Voting revealed: select only top candidates */}
                   {isHostOrAdmin && canSelectAfterReveal && isTopCandidate && (
-                    <button onClick={() => selectBook(c.bookId)} title="Select this book"
+                    <button onClick={() => selectBook(c.bookId)} title={t('meetDetail.selectThisBook')}
                       className="p-1.5 text-sage hover:bg-sage/20 rounded-lg"><Check className="w-4 h-4" /></button>
                   )}
                   {isHostOrAdmin && meet.phase === 'draft' && c.bookId !== meet.selectedBookId && (
-                    <button onClick={() => removeCandidate(c.id)} title="Remove candidate"
+                    <button onClick={() => removeCandidate(c.id)} title={t('meetDetail.removeCandidate')}
                       className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X className="w-4 h-4" /></button>
                   )}
                 </div>
@@ -366,6 +370,7 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
 function VotingSection({ meet, onUpdate, isHostOrAdmin }: {
   meet: MeetDetailResponse; onUpdate: () => void; isHostOrAdmin: boolean;
 }) {
+  const { t } = useTranslation();
   const [points, setPoints] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [initialized, setInitialized] = useState(false);
@@ -419,16 +424,16 @@ function VotingSection({ meet, onUpdate, isHostOrAdmin }: {
     <div className="bg-white rounded-xl border border-warm-gray p-6">
       <h2 className="font-serif font-semibold text-brown text-lg mb-4 flex items-center gap-2">
         <Vote className="w-5 h-5 text-burgundy" />
-        Vote on Candidates
+        {t('meetDetail.voteOnCandidates')}
       </h2>
 
       {/* Vote status */}
       <div className="mb-4 p-3 bg-cream rounded-lg">
-        <p className="text-sm font-medium text-brown mb-2">Voting Status</p>
+        <p className="text-sm font-medium text-brown mb-2">{t('meetDetail.votingStatus')}</p>
         <div className="flex flex-wrap gap-2">
           {meet.voteStatus.map(v => (
             <span key={v.userId} className={`text-xs px-2.5 py-1 rounded-full ${v.hasVoted ? 'bg-sage/20 text-sage-dark' : 'bg-warm-gray text-brown-light'}`}>
-              {v.username}: {v.hasVoted ? 'Decided' : 'Undecided'}
+              {v.username}: {v.hasVoted ? t('meetDetail.decided') : t('meetDetail.undecided')}
             </span>
           ))}
         </div>
@@ -437,9 +442,9 @@ function VotingSection({ meet, onUpdate, isHostOrAdmin }: {
       {/* Point distribution */}
       <div className="space-y-3 mb-4">
         <p className="text-sm text-brown-light">
-          Distribute <strong>{VOTING_POINTS_TOTAL}</strong> points among the candidates.
-          Remaining: <strong className={remaining === 0 ? 'text-sage-dark' : 'text-burgundy'}>{remaining}</strong>
-          {hasVoted && <span className="ml-2 text-sage-dark">(Your votes are saved)</span>}
+          {t('meetDetail.distributePoints', { total: VOTING_POINTS_TOTAL })}{' '}
+          {t('meetDetail.remaining', { count: remaining })}
+          {hasVoted && <span className="ml-2 text-sage-dark">{t('meetDetail.votesAreSaved')}</span>}
         </p>
         {meet.candidates.map(c => (
           <div key={c.id} className="flex items-center gap-3">
@@ -464,12 +469,12 @@ function VotingSection({ meet, onUpdate, isHostOrAdmin }: {
       <div className="flex flex-wrap gap-2">
         <button onClick={submitVotes} disabled={submitting || remaining !== 0}
           className="px-4 py-2 bg-burgundy text-white rounded-lg text-sm font-medium disabled:opacity-50">
-          {submitting ? 'Submitting...' : hasVoted ? 'Update Votes' : 'Submit Votes'}
+          {submitting ? t('meetDetail.submitting') : hasVoted ? t('meetDetail.updateVotes') : t('meetDetail.submitVotes')}
         </button>
         {isHostOrAdmin && !meet.votingPointsRevealed && (
           <button onClick={revealScores}
             className="px-4 py-2 border border-burgundy text-burgundy rounded-lg text-sm font-medium hover:bg-burgundy/5 flex items-center gap-1.5">
-            <Eye className="w-4 h-4" /> Reveal Scores
+            <Eye className="w-4 h-4" /> {t('meetDetail.revealScores')}
           </button>
         )}
       </div>
@@ -480,6 +485,7 @@ function VotingSection({ meet, onUpdate, isHostOrAdmin }: {
 function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
   meet: MeetDetailResponse; onUpdate: () => void; isHostOrAdmin: boolean;
 }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [votes, setVotes] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -552,9 +558,9 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
   };
 
   const availabilityOptions = [
-    { value: 'available', label: 'Available', icon: Check, color: 'text-sage-dark bg-sage/20' },
-    { value: 'not_available', label: 'Not Available', icon: X, color: 'text-red-500 bg-red-50' },
-    { value: 'maybe', label: 'Maybe', icon: Minus, color: 'text-amber-600 bg-amber-50' },
+    { value: 'available', label: t('meetDetail.available'), icon: Check, color: 'text-sage-dark bg-sage/20' },
+    { value: 'not_available', label: t('meetDetail.notAvailable'), icon: X, color: 'text-red-500 bg-red-50' },
+    { value: 'maybe', label: t('meetDetail.maybe'), icon: Minus, color: 'text-amber-600 bg-amber-50' },
   ];
 
   // In draft phase: show date management (add/remove)
@@ -567,7 +573,7 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-serif font-semibold text-brown text-lg flex items-center gap-2">
           <Clock className="w-5 h-5 text-burgundy" />
-          {isDraft ? 'Date Options' : 'Availability Poll'}
+          {isDraft ? t('meetDetail.dateOptions') : t('meetDetail.availabilityPoll')}
         </h2>
         {isHostOrAdmin && isDraft && !meet.selectedDate && (
           <button onClick={() => {
@@ -586,7 +592,7 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
             }
             setShowAddDate(!showAddDate);
           }}
-            className="text-sm text-burgundy hover:text-burgundy-light font-medium">+ Add Date</button>
+            className="text-sm text-burgundy hover:text-burgundy-light font-medium">{t('meetDetail.addDate')}</button>
         )}
       </div>
 
@@ -594,7 +600,7 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
         <div className="p-3 bg-sage/10 rounded-lg border border-sage/20 mb-4">
           <div className="flex items-center gap-2">
             <Check className="w-5 h-5 text-sage-dark" />
-            <span className="font-medium text-brown">Selected: {formatDateTime(meet.selectedDate)}</span>
+            <span className="font-medium text-brown">{t('meetDetail.selectedDate', { date: formatDateTime(meet.selectedDate) })}</span>
           </div>
         </div>
       )}
@@ -603,7 +609,7 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
         <div className="bg-cream rounded-lg p-4 mb-4 flex gap-2">
           <input type="datetime-local" value={newDateTime} onChange={e => setNewDateTime(e.target.value)}
             className="flex-1 px-4 py-2 rounded-lg border border-warm-gray bg-white text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30" />
-          <button onClick={addDateOption} className="px-4 py-2 bg-burgundy text-white rounded-lg text-sm font-medium">Add</button>
+          <button onClick={addDateOption} className="px-4 py-2 bg-burgundy text-white rounded-lg text-sm font-medium">{t('common.add')}</button>
         </div>
       )}
 
@@ -615,10 +621,10 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
               {isHostOrAdmin && (
                 <div className="flex gap-1">
                   {meet.dateOptions.length === 1 && !meet.selectedDate && (
-                    <button onClick={() => selectDate(opt.id)} title="Select this date"
+                    <button onClick={() => selectDate(opt.id)} title={t('meetDetail.selectThisDate')}
                       className="p-1.5 text-sage hover:bg-sage/20 rounded-lg"><Check className="w-4 h-4" /></button>
                   )}
-                  <button onClick={() => removeDateOption(opt.id)} title="Remove date option"
+                  <button onClick={() => removeDateOption(opt.id)} title={t('meetDetail.removeDateOption')}
                     className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X className="w-4 h-4" /></button>
                 </div>
               )}
@@ -632,11 +638,11 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-warm-gray">
-                <th className="text-left py-2 text-brown font-medium">Date</th>
+                <th className="text-left py-2 text-brown font-medium">{t('meetDetail.dateColumn')}</th>
                 {meet.dateOptions[0]?.votes.map(v => (
                   <th key={v.userId} className="text-center py-2 text-brown font-medium px-2">{v.username}</th>
                 ))}
-                <th className="text-center py-2 text-brown font-medium">Your Vote</th>
+                <th className="text-center py-2 text-brown font-medium">{t('meetDetail.yourVote')}</th>
                 {isHostOrAdmin && <th className="w-10"></th>}
               </tr>
             </thead>
@@ -665,14 +671,14 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
                       className="text-xs px-2 py-1 rounded border border-warm-gray bg-cream/50"
                     >
                       <option value="no_response">—</option>
-                      <option value="available">Available</option>
-                      <option value="not_available">Not Available</option>
-                      <option value="maybe">Maybe</option>
+                      <option value="available">{t('meetDetail.available')}</option>
+                      <option value="not_available">{t('meetDetail.notAvailable')}</option>
+                      <option value="maybe">{t('meetDetail.maybe')}</option>
                     </select>
                   </td>
                   {isHostOrAdmin && (
                     <td className="text-center py-3">
-                      <button onClick={() => selectDate(opt.id)} title="Select this date"
+                      <button onClick={() => selectDate(opt.id)} title={t('meetDetail.selectThisDate')}
                         className="p-1.5 text-sage hover:bg-sage/20 rounded-lg"><Check className="w-4 h-4" /></button>
                     </td>
                   )}
@@ -682,33 +688,34 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
           </table>
           <button onClick={submitAvailability} disabled={submitting}
             className="mt-3 px-4 py-2 bg-burgundy text-white rounded-lg text-sm font-medium disabled:opacity-50">
-            {submitting ? 'Saving...' : 'Save Availability'}
+            {submitting ? t('meetDetail.saving') : t('meetDetail.saveAvailability')}
           </button>
         </div>
       )}
 
       {meet.dateOptions.length === 0 && !showAddDate && (
-        <p className="text-sm text-brown-light">No date options added yet.</p>
+        <p className="text-sm text-brown-light">{t('meetDetail.noDateOptions')}</p>
       )}
     </div>
   );
 }
 
 function SelectedBookSection({ meet }: { meet: MeetDetailResponse }) {
+  const { t } = useTranslation();
   if (!meet.selectedBookId) return null;
   return (
     <div className="bg-white rounded-xl border border-warm-gray p-6">
       <h2 className="font-serif font-semibold text-brown text-lg mb-3 flex items-center gap-2">
         <BookOpen className="w-5 h-5 text-sage" />
-        Selected Book
+        {t('meetDetail.selectedBook')}
       </h2>
       <Link to={`/books/${meet.selectedBookId}`} className="text-burgundy hover:text-burgundy-light font-medium text-lg">
         {meet.selectedBookTitle}
       </Link>
       {meet.selectedDate && (
         <p className="text-sm text-brown-light mt-2 flex items-center gap-1">
-          <Calendar className="w-4 h-4" /> Meeting on {formatDateTime(meet.selectedDate)}
-          {meet.location && <span> at {meet.location}</span>}
+          <Calendar className="w-4 h-4" /> {t('meetDetail.meetingOn', { date: formatDateTime(meet.selectedDate) })}
+          {meet.location && <span> {t('meetDetail.atLocation', { location: meet.location })}</span>}
         </p>
       )}
     </div>
@@ -716,6 +723,7 @@ function SelectedBookSection({ meet }: { meet: MeetDetailResponse }) {
 }
 
 function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: () => void }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [entries, setEntries] = useState<{ bookId: string; rank: number }[]>([]);
@@ -769,16 +777,16 @@ function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: (
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-serif font-semibold text-brown text-lg flex items-center gap-2">
           <Trophy className="w-5 h-5 text-burgundy" />
-          Top 5 Books
+          {t('meetDetail.top5Books')}
         </h2>
         <button onClick={() => setShowForm(!showForm)} className="text-sm text-burgundy hover:text-burgundy-light font-medium">
-          {myEntries.length > 0 ? 'Update My Top 5' : 'Add My Top 5'}
+          {myEntries.length > 0 ? t('meetDetail.updateMyTop5') : t('meetDetail.addMyTop5')}
         </button>
       </div>
 
       {showForm && (
         <div className="bg-cream rounded-lg p-4 mb-4 space-y-3">
-          <p className="text-sm text-brown-light">Select up to {maxEntries} books, ranked from 1 (best) to {maxEntries}. Use arrows to reorder.</p>
+          <p className="text-sm text-brown-light">{t('meetDetail.selectUpTo', { max: maxEntries })}</p>
 
           {/* Add book to ranking */}
           <select
@@ -792,7 +800,7 @@ function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: (
             disabled={entries.length >= maxEntries}
             className="w-full px-3 py-2 rounded-lg border border-warm-gray bg-white text-brown text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30"
           >
-            <option value="">Add a book to your ranking...</option>
+            <option value="">{t('meetDetail.addToRanking')}</option>
             {eligibleBooks
               .filter(b => !entries.some(en => en.bookId === b.id))
               .sort((a, b) => a.title.localeCompare(b.title))
@@ -823,7 +831,7 @@ function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: (
                       }}
                       disabled={idx === 0}
                       className="p-1 text-brown-lighter hover:text-burgundy disabled:opacity-30"
-                      title="Move up"
+                      title={t('meetDetail.moveUp')}
                     >
                       <ChevronUp className="w-4 h-4" />
                     </button>
@@ -839,7 +847,7 @@ function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: (
                       }}
                       disabled={idx === entries.length - 1}
                       className="p-1 text-brown-lighter hover:text-burgundy disabled:opacity-30"
-                      title="Move down"
+                      title={t('meetDetail.moveDown')}
                     >
                       <ChevronDown className="w-4 h-4" />
                     </button>
@@ -851,7 +859,7 @@ function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: (
                         setEntries(sorted.map((en, i) => ({ ...en, rank: i + 1 })));
                       }}
                       className="p-1 text-red-400 hover:text-red-600"
-                      title="Remove"
+                      title={t('meetDetail.remove')}
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -862,7 +870,7 @@ function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: (
 
           <button onClick={submitTop5} disabled={submitting || entries.length === 0}
             className="px-4 py-2 bg-burgundy text-white rounded-lg text-sm font-medium disabled:opacity-50">
-            {submitting ? 'Saving...' : 'Save Top 5'}
+            {submitting ? t('meetDetail.saving') : t('meetDetail.saveTop5')}
           </button>
         </div>
       )}
@@ -870,7 +878,7 @@ function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: (
       {/* My entries */}
       {myEntries.length > 0 && (
         <div className="mb-4">
-          <h3 className="text-sm font-medium text-brown mb-2">Your Top 5</h3>
+          <h3 className="text-sm font-medium text-brown mb-2">{t('meetDetail.yourTop5')}</h3>
           <ol className="space-y-1">
             {myEntries.sort((a, b) => a.rank - b.rank).map(e => (
               <li key={e.id} className="flex items-center gap-2 text-sm">
@@ -885,7 +893,7 @@ function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: (
       {/* Others' entries */}
       {Array.from(userGroups.entries()).map(([userId, userEntries]) => (
         <div key={userId} className="mb-4 last:mb-0">
-          <h3 className="text-sm font-medium text-brown mb-2">{userEntries[0]?.username}'s Top 5</h3>
+          <h3 className="text-sm font-medium text-brown mb-2">{t('meetDetail.usersTop5', { name: userEntries[0]?.username })}</h3>
           <ol className="space-y-1">
             {userEntries.sort((a, b) => a.rank - b.rank).map(e => (
               <li key={e.id} className="flex items-center gap-2 text-sm">
@@ -898,18 +906,19 @@ function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: (
       ))}
 
       {meet.top5Entries.length === 0 && !showForm && (
-        <p className="text-sm text-brown-light">No one has submitted their Top 5 yet.</p>
+        <p className="text-sm text-brown-light">{t('meetDetail.noTop5Yet')}</p>
       )}
     </div>
   );
 }
 
 function AggregatedRankingSection({ ranking }: { ranking: AggregatedRankingResponse[] }) {
+  const { t } = useTranslation();
   return (
     <div className="bg-white rounded-xl border border-warm-gray p-6">
       <h2 className="font-serif font-semibold text-brown text-lg mb-4 flex items-center gap-2">
         <Trophy className="w-5 h-5 text-sage" />
-        All-Time Group Ranking
+        {t('meetDetail.allTimeGroupRanking')}
       </h2>
       <div className="space-y-2">
         {ranking.map((r, i) => (
@@ -922,11 +931,11 @@ function AggregatedRankingSection({ ranking }: { ranking: AggregatedRankingRespo
             }`}>{i + 1}</span>
             <div className="flex-1 min-w-0">
               <span className="font-medium text-brown">{r.bookTitle}</span>
-              <span className="text-sm text-brown-light ml-2">by {r.bookAuthor}</span>
+              <span className="text-sm text-brown-light ml-2">{t('common.by')} {r.bookAuthor}</span>
             </div>
             <div className="text-right">
-              <span className="font-medium text-burgundy">{r.totalPoints} pts</span>
-              <span className="text-xs text-brown-lighter ml-1">({r.appearances}x)</span>
+              <span className="font-medium text-burgundy">{t('dashboard.pts', { points: r.totalPoints })}</span>
+              <span className="text-xs text-brown-lighter ml-1">{t('dashboard.appearances', { count: r.appearances })}</span>
             </div>
           </div>
         ))}

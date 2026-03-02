@@ -3,8 +3,10 @@ import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { BookOpen } from 'lucide-react';
 import { PASSWORD_REQUIREMENTS } from '@readingcircle/shared';
+import { useTranslation } from 'react-i18next';
 
 export function SetupPage() {
+  const { t } = useTranslation();
   const { user, updateUser } = useAuth();
   const [username, setUsername] = useState(user?.username || '');
   const [email, setEmail] = useState('');
@@ -18,7 +20,7 @@ export function SetupPage() {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('auth.passwordsDoNotMatch'));
       return;
     }
 
@@ -43,8 +45,8 @@ export function SetupPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-burgundy rounded-full mb-4">
             <BookOpen className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-serif font-bold text-burgundy">Complete Your Setup</h1>
-          <p className="text-brown-light mt-2">Please update your account details to get started</p>
+          <h1 className="text-3xl font-serif font-bold text-burgundy">{t('auth.setup.title')}</h1>
+          <p className="text-brown-light mt-2">{t('auth.setup.subtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-warm-gray p-8 space-y-5">
@@ -56,7 +58,7 @@ export function SetupPage() {
 
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-brown mb-1.5">
-              Username
+              {t('auth.username')}
             </label>
             <input
               id="username"
@@ -70,7 +72,7 @@ export function SetupPage() {
 
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-brown mb-1.5">
-              Email Address
+              {t('auth.emailAddress')}
             </label>
             <input
               id="email"
@@ -85,7 +87,7 @@ export function SetupPage() {
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-brown mb-1.5">
-              New Password
+              {t('auth.setup.newPassword')}
             </label>
             <input
               id="password"
@@ -100,7 +102,7 @@ export function SetupPage() {
 
           <div>
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-brown mb-1.5">
-              Confirm Password
+              {t('auth.confirmPassword')}
             </label>
             <input
               id="confirmPassword"
@@ -117,7 +119,7 @@ export function SetupPage() {
             disabled={loading}
             className="w-full py-2.5 bg-burgundy hover:bg-burgundy-light text-white font-medium rounded-lg transition-colors disabled:opacity-50"
           >
-            {loading ? 'Saving...' : 'Complete Setup'}
+            {loading ? t('auth.setup.saving') : t('auth.setup.completeSetup')}
           </button>
         </form>
       </div>

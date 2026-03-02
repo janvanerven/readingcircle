@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
+import { useTranslation } from 'react-i18next';
 import { Layout } from '@/components/Layout';
 import { LoginPage } from '@/pages/LoginPage';
 import { SetupPage } from '@/pages/SetupPage';
@@ -18,11 +19,12 @@ import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const { t } = useTranslation();
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-cream">
-        <div className="text-brown-light animate-pulse font-serif text-xl">Loading...</div>
+        <div className="text-brown-light animate-pulse font-serif text-xl">{t('common.loading')}</div>
       </div>
     );
   }
@@ -35,11 +37,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const { user, loading } = useAuth();
+  const { t } = useTranslation();
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-cream">
-        <div className="text-brown-light animate-pulse font-serif text-xl">Loading...</div>
+        <div className="text-brown-light animate-pulse font-serif text-xl">{t('common.loading')}</div>
       </div>
     );
   }

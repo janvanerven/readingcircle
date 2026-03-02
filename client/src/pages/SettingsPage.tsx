@@ -1,11 +1,13 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
-import { Settings, User, Lock } from 'lucide-react';
+import { Settings, User, Lock, Globe } from 'lucide-react';
 import { PASSWORD_REQUIREMENTS } from '@readingcircle/shared';
 
 export function SettingsPage() {
   const { user, updateUser } = useAuth();
+  const { t, i18n } = useTranslation();
 
   // Username change
   const [newUsername, setNewUsername] = useState('');
@@ -22,18 +24,21 @@ export function SettingsPage() {
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
 
+  // Language
+  const [languageSaving, setLanguageSaving] = useState(false);
+
   const handleUsernameChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setUsernameError('');
     setUsernameSuccess('');
     setUsernameSubmitting(true);
     try {
-      const data = await api<{ accessToken: string; user: { id: string; username: string; isAdmin: boolean; isTemporary: boolean } }>('/auth/username', {
+      const data = await api<{ accessToken: string; user: { id: string; username: string; isAdmin: boolean; isTemporary: boolean; locale: string } }>('/auth/username', {
         method: 'PATCH',
         body: JSON.stringify({ newUsername, currentPassword: usernamePassword }),
       });
       updateUser(data.user, data.accessToken);
-      setUsernameSuccess('Username updated successfully');
+      setUsernameSuccess(t('settings.usernameUpdated'));
       setNewUsername('');
       setUsernamePassword('');
     } catch (err: unknown) {
@@ -49,7 +54,7 @@ export function SettingsPage() {
     setPasswordSuccess('');
 
     if (newPassword !== confirmPassword) {
-      setPasswordError('Passwords do not match');
+      setPasswordError(t('auth.passwordsDoNotMatch'));
       return;
     }
 
@@ -59,7 +64,7 @@ export function SettingsPage() {
         method: 'PATCH',
         body: JSON.stringify({ currentPassword, newPassword }),
       });
-      setPasswordSuccess('Password updated successfully');
+      setPasswordSuccess(t('settings.passwordUpdated'));
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -70,29 +75,45 @@ export function SettingsPage() {
     }
   };
 
+  const handleLanguageChange = async (newLocale: string) => {
+    setLanguageSaving(true);
+    try {
+      await api('/auth/locale', {
+        method: 'PATCH',
+        body: JSON.stringify({ locale: newLocale }),
+      });
+      i18n.changeLanguage(newLocale);
+      localStorage.setItem('locale', newLocale);
+    } catch {
+      // ignore
+    } finally {
+      setLanguageSaving(false);
+    }
+  };
+
   const inputClass = 'w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition';
 
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-serif font-bold text-burgundy flex items-center gap-3">
         <Settings className="w-8 h-8" />
-        Settings
+        {t('settings.title')}
       </h1>
 
       {/* Change Username */}
       <div className="bg-white rounded-xl border border-warm-gray p-6 space-y-4">
         <h2 className="font-serif font-semibold text-brown text-lg flex items-center gap-2">
           <User className="w-5 h-5 text-burgundy" />
-          Change Username
+          {t('settings.changeUsername')}
         </h2>
-        <p className="text-sm text-brown-light">Current username: <strong className="text-brown">{user?.username}</strong></p>
+        <p className="text-sm text-brown-light">{t('settings.currentUsername')} <strong className="text-brown">{user?.username}</strong></p>
 
         {usernameError && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{usernameError}</div>}
         {usernameSuccess && <div className="bg-sage/10 text-sage-dark px-4 py-3 rounded-lg text-sm border border-sage/30">{usernameSuccess}</div>}
 
         <form onSubmit={handleUsernameChange} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-brown mb-1">New Username</label>
+            <label className="block text-sm font-medium text-brown mb-1">{t('settings.newUsername')}</label>
             <input
               type="text"
               value={newUsername}
@@ -104,7 +125,7 @@ export function SettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-brown mb-1">Current Password</label>
+            <label className="block text-sm font-medium text-brown mb-1">{t('settings.currentPassword')}</label>
             <input
               type="password"
               value={usernamePassword}
@@ -118,7 +139,7 @@ export function SettingsPage() {
             disabled={usernameSubmitting}
             className="px-4 py-2 bg-burgundy hover:bg-burgundy-light text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
           >
-            {usernameSubmitting ? 'Updating...' : 'Update Username'}
+            {usernameSubmitting ? t('settings.updating') : t('settings.updateUsername')}
           </button>
         </form>
       </div>
@@ -127,7 +148,7 @@ export function SettingsPage() {
       <div className="bg-white rounded-xl border border-warm-gray p-6 space-y-4">
         <h2 className="font-serif font-semibold text-brown text-lg flex items-center gap-2">
           <Lock className="w-5 h-5 text-burgundy" />
-          Change Password
+          {t('settings.changePassword')}
         </h2>
         <p className="text-xs text-brown-light">{PASSWORD_REQUIREMENTS.description}</p>
 
@@ -136,7 +157,7 @@ export function SettingsPage() {
 
         <form onSubmit={handlePasswordChange} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-brown mb-1">Current Password</label>
+            <label className="block text-sm font-medium text-brown mb-1">{t('settings.currentPassword')}</label>
             <input
               type="password"
               value={currentPassword}
@@ -146,7 +167,7 @@ export function SettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-brown mb-1">New Password</label>
+            <label className="block text-sm font-medium text-brown mb-1">{t('settings.newPassword')}</label>
             <input
               type="password"
               value={newPassword}
@@ -157,7 +178,7 @@ export function SettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-brown mb-1">Confirm New Password</label>
+            <label className="block text-sm font-medium text-brown mb-1">{t('settings.confirmNewPassword')}</label>
             <input
               type="password"
               value={confirmPassword}
@@ -172,9 +193,29 @@ export function SettingsPage() {
             disabled={passwordSubmitting}
             className="px-4 py-2 bg-burgundy hover:bg-burgundy-light text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
           >
-            {passwordSubmitting ? 'Updating...' : 'Update Password'}
+            {passwordSubmitting ? t('settings.updating') : t('settings.updatePassword')}
           </button>
         </form>
+      </div>
+
+      {/* Language */}
+      <div className="bg-white rounded-xl border border-warm-gray p-6 space-y-4">
+        <h2 className="font-serif font-semibold text-brown text-lg flex items-center gap-2">
+          <Globe className="w-5 h-5 text-burgundy" />
+          {t('settings.language')}
+        </h2>
+        <div>
+          <label className="block text-sm font-medium text-brown mb-1">{t('settings.languageLabel')}</label>
+          <select
+            value={i18n.language}
+            onChange={e => handleLanguageChange(e.target.value)}
+            disabled={languageSaving}
+            className={inputClass}
+          >
+            <option value="en">{t('settings.english')}</option>
+            <option value="nl">{t('settings.dutch')}</option>
+          </select>
+        </div>
       </div>
     </div>
   );
