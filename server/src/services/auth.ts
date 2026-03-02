@@ -155,7 +155,7 @@ export async function createInvitation(email: string, invitedById: string) {
     createdAt: now,
   }).run();
 
-  await sendInvitationEmail(email, token, inviter.username);
+  await sendInvitationEmail(email, token, inviter.username, inviter.locale);
 
   return { email, token, expiresAt };
 }

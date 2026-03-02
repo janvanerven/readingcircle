@@ -230,7 +230,7 @@ authRoutes.post('/forgot-password', authLimiter, async (req: Request, res: Respo
         createdAt: now,
       }).run();
 
-      await sendPasswordResetEmail(email, token);
+      await sendPasswordResetEmail(email, token, user.locale);
     }
 
     // Always return 200

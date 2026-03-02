@@ -328,7 +328,7 @@ meetRoutes.post('/:id/phase', (req: Request, res: Response, next: NextFunction) 
       .run();
 
     // Send email notifications (fire-and-forget)
-    const recipients = db.select({ email: schema.users.email })
+    const recipients = db.select({ email: schema.users.email, locale: schema.users.locale })
       .from(schema.users)
       .where(eq(schema.users.isTemporary, false))
       .all();
@@ -345,7 +345,7 @@ meetRoutes.post('/:id/phase', (req: Request, res: Response, next: NextFunction) 
         .map(c => ({ title: c.title!, author: c.author! }));
 
       for (const r of recipients) {
-        sendVotingOpenedEmail(r.email, meetLabel, req.params.id as string, candidates)
+        sendVotingOpenedEmail(r.email, meetLabel, req.params.id as string, candidates, r.locale)
           .catch(err => console.error('Failed to send voting notification to', r.email, err));
       }
     } else if (phase === 'reading') {
@@ -361,7 +361,7 @@ meetRoutes.post('/:id/phase', (req: Request, res: Response, next: NextFunction) 
 
       if (book) {
         for (const r of recipients) {
-          sendBookSelectedEmail(r.email, book.title, book.author, updatedMeet?.selectedDate || null, req.params.id as string)
+          sendBookSelectedEmail(r.email, book.title, book.author, updatedMeet?.selectedDate || null, req.params.id as string, r.locale)
             .catch(err => console.error('Failed to send book selected notification to', r.email, err));
         }
       }
