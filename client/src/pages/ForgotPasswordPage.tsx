@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, ArrowLeft, Mail } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { LanguageToggle } from '@/components/LanguageToggle';
 
 export function ForgotPasswordPage() {
   const { t } = useTranslation();
@@ -87,6 +88,10 @@ export function ForgotPasswordPage() {
               </Link>
             </>
           )}
+        </div>
+
+        <div className="text-center mt-4">
+          <LanguageToggle />
         </div>
       </div>
     </div>

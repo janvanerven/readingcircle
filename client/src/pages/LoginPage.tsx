@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { BookOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { LanguageToggle } from '@/components/LanguageToggle';
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -88,6 +89,10 @@ export function LoginPage() {
             </Link>
           </div>
         </form>
+
+        <div className="text-center mt-4">
+          <LanguageToggle />
+        </div>
       </div>
     </div>
   );

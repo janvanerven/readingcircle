@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { BookOpen } from 'lucide-react';
 import { PASSWORD_REQUIREMENTS } from '@readingcircle/shared';
 import { useTranslation } from 'react-i18next';
+import { LanguageToggle } from '@/components/LanguageToggle';
 
 export function JoinPage() {
   const { t } = useTranslation();
@@ -159,6 +160,10 @@ export function JoinPage() {
             {submitting ? t('auth.join.creatingAccount') : t('auth.join.joinTheCircle')}
           </button>
         </form>
+
+        <div className="text-center mt-4">
+          <LanguageToggle />
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { BookOpen } from 'lucide-react';
 import { PASSWORD_REQUIREMENTS } from '@readingcircle/shared';
 import { useTranslation } from 'react-i18next';
+import { LanguageToggle } from '@/components/LanguageToggle';
 
 export function ResetPasswordPage() {
   const { t } = useTranslation();
@@ -108,6 +109,10 @@ export function ResetPasswordPage() {
               </Link>
             </>
           )}
+        </div>
+
+        <div className="text-center mt-4">
+          <LanguageToggle />
         </div>
       </div>
     </div>
