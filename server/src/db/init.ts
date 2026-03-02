@@ -138,6 +138,7 @@ export function initializeDatabase() {
   addColumn('books', 'country', 'TEXT');
   addColumn('books', 'original_language', 'TEXT');
   addColumn('books', 'type', 'TEXT');
+  addColumn('users', 'locale', "TEXT NOT NULL DEFAULT 'en'");
 
   sqlite.close();
 }
