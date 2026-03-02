@@ -6,7 +6,7 @@ import type { BookResponse, CreateBookRequest } from '@readingcircle/shared';
 import { BOOK_TYPES } from '@readingcircle/shared';
 
 type FilterValue = 'all' | 'read' | 'unread';
-type SortValue = 'title' | 'voted-down';
+type SortValue = 'title' | 'author' | 'year' | 'recent' | 'voted-down';
 
 const emptyBook: CreateBookRequest = { title: '', author: '', year: '', country: '', originalLanguage: '', type: '', introduction: '' };
 
@@ -15,6 +15,9 @@ export function BooksPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterValue>('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [countryFilter, setCountryFilter] = useState('all');
+  const [languageFilter, setLanguageFilter] = useState('all');
   const [sort, setSort] = useState<SortValue>('title');
   const [showAdd, setShowAdd] = useState(false);
   const [newBook, setNewBook] = useState<CreateBookRequest>({ ...emptyBook });
@@ -36,6 +39,13 @@ export function BooksPage() {
     }
   }
 
+  const filterOptions = useMemo(() => {
+    const types = [...new Set(books.map(b => b.type).filter(Boolean))].sort() as string[];
+    const countries = [...new Set(books.map(b => b.country).filter(Boolean))].sort() as string[];
+    const languages = [...new Set(books.map(b => b.originalLanguage).filter(Boolean))].sort() as string[];
+    return { types, countries, languages };
+  }, [books]);
+
   const displayedBooks = useMemo(() => {
     let result = books.filter(b =>
       b.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -44,15 +54,29 @@ export function BooksPage() {
 
     if (filter === 'read') result = result.filter(b => b.isRead);
     if (filter === 'unread') result = result.filter(b => !b.isRead);
+    if (typeFilter !== 'all') result = result.filter(b => b.type === typeFilter);
+    if (countryFilter !== 'all') result = result.filter(b => b.country === countryFilter);
+    if (languageFilter !== 'all') result = result.filter(b => b.originalLanguage === languageFilter);
 
     if (sort === 'title') {
       result = [...result].sort((a, b) => a.title.localeCompare(b.title));
+    } else if (sort === 'author') {
+      result = [...result].sort((a, b) => a.author.localeCompare(b.author) || a.title.localeCompare(b.title));
+    } else if (sort === 'year') {
+      result = [...result].sort((a, b) => {
+        if (!a.year && !b.year) return a.title.localeCompare(b.title);
+        if (!a.year) return 1;
+        if (!b.year) return -1;
+        return a.year.localeCompare(b.year) || a.title.localeCompare(b.title);
+      });
+    } else if (sort === 'recent') {
+      result = [...result].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     } else if (sort === 'voted-down') {
       result = [...result].sort((a, b) => b.candidateCount - a.candidateCount || a.title.localeCompare(b.title));
     }
 
     return result;
-  }, [books, search, filter, sort]);
+  }, [books, search, filter, typeFilter, countryFilter, languageFilter, sort]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,36 +218,74 @@ export function BooksPage() {
       )}
 
       {/* Search + filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brown-lighter" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search books by title or author..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-warm-gray bg-white text-brown placeholder:text-brown-lighter focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition"
-          />
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brown-lighter" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search books by title or author..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-warm-gray bg-white text-brown placeholder:text-brown-lighter focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition"
+            />
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={filter}
+              onChange={e => setFilter(e.target.value as FilterValue)}
+              className="px-3 py-2.5 rounded-lg border border-warm-gray bg-white text-brown text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30"
+            >
+              <option value="all">All Books</option>
+              <option value="read">Read</option>
+              <option value="unread">Unread</option>
+            </select>
+            <select
+              value={sort}
+              onChange={e => setSort(e.target.value as SortValue)}
+              className="px-3 py-2.5 rounded-lg border border-warm-gray bg-white text-brown text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30"
+            >
+              <option value="title">Sort: Title A-Z</option>
+              <option value="author">Sort: Author A-Z</option>
+              <option value="year">Sort: Year</option>
+              <option value="recent">Sort: Recently Added</option>
+              <option value="voted-down">Sort: Most Nominated</option>
+            </select>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <select
-            value={filter}
-            onChange={e => setFilter(e.target.value as FilterValue)}
-            className="px-3 py-2.5 rounded-lg border border-warm-gray bg-white text-brown text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30"
-          >
-            <option value="all">All Books</option>
-            <option value="read">Read</option>
-            <option value="unread">Unread</option>
-          </select>
-          <select
-            value={sort}
-            onChange={e => setSort(e.target.value as SortValue)}
-            className="px-3 py-2.5 rounded-lg border border-warm-gray bg-white text-brown text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30"
-          >
-            <option value="title">Sort: A-Z</option>
-            <option value="voted-down">Sort: Most Nominated</option>
-          </select>
+        <div className="flex flex-wrap gap-2">
+          {filterOptions.types.length > 0 && (
+            <select
+              value={typeFilter}
+              onChange={e => setTypeFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-warm-gray bg-white text-brown text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30"
+            >
+              <option value="all">All Types</option>
+              {filterOptions.types.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          )}
+          {filterOptions.countries.length > 0 && (
+            <select
+              value={countryFilter}
+              onChange={e => setCountryFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-warm-gray bg-white text-brown text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30"
+            >
+              <option value="all">All Countries</option>
+              {filterOptions.countries.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+          {filterOptions.languages.length > 0 && (
+            <select
+              value={languageFilter}
+              onChange={e => setLanguageFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-warm-gray bg-white text-brown text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30"
+            >
+              <option value="all">All Languages</option>
+              {filterOptions.languages.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+          )}
         </div>
+        <p className="text-sm text-brown-light">{displayedBooks.length} {displayedBooks.length === 1 ? 'book' : 'books'}</p>
       </div>
 
       {/* Book list */}
