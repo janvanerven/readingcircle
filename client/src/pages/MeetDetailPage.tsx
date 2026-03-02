@@ -180,6 +180,7 @@ export function MeetDetailPage() {
       {(meet.phase === 'reading' || meet.phase === 'completed') && (
         <>
           <SelectedBookSection meet={meet} />
+          <VotingResultsSection meet={meet} />
           <Top5Section meet={meet} onUpdate={loadMeet} />
         </>
       )}
@@ -832,6 +833,60 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
       {meet.dateOptions.length === 0 && !showAddDate && (
         <p className="text-sm text-brown-light">{t('meetDetail.noDateOptions')}</p>
       )}
+    </div>
+  );
+}
+
+function VotingResultsSection({ meet }: { meet: MeetDetailResponse }) {
+  const { t } = useTranslation();
+  const hasVotes = meet.candidates.some(c => (c.points ?? 0) > 0);
+
+  if (!hasVotes) {
+    return (
+      <div className="bg-white rounded-xl border border-warm-gray p-6">
+        <h2 className="font-serif font-semibold text-brown text-lg mb-3 flex items-center gap-2">
+          <Vote className="w-5 h-5 text-burgundy" />
+          {t('meetDetail.votingResults')}
+        </h2>
+        <p className="text-brown-light text-sm">{t('meetDetail.noVotesCast')}</p>
+      </div>
+    );
+  }
+
+  const sorted = [...meet.candidates].sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
+
+  return (
+    <div className="bg-white rounded-xl border border-warm-gray p-6">
+      <h2 className="font-serif font-semibold text-brown text-lg mb-4 flex items-center gap-2">
+        <Vote className="w-5 h-5 text-burgundy" />
+        {t('meetDetail.votingResults')}
+      </h2>
+      <div className="space-y-3">
+        {sorted.map(c => {
+          const isSelected = c.bookId === meet.selectedBookId;
+          return (
+            <div key={c.id} className={`flex items-start justify-between p-3 rounded-lg ${
+              isSelected ? 'bg-sage/10 border border-sage/20' : 'bg-cream/50'
+            }`}>
+              <div>
+                <div className="flex items-center gap-2">
+                  <Link to={`/books/${c.bookId}`} className="font-medium text-brown hover:text-burgundy">{c.bookTitle}</Link>
+                  {isSelected && (
+                    <span className="inline-flex items-center gap-1 text-xs text-sage-dark bg-sage/20 px-2 py-0.5 rounded-full">
+                      <Check className="w-3 h-3" /> {t('meetDetail.selectedBook')}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-brown-light">{t('common.by')} {c.bookAuthor}</p>
+                {c.motivation && <p className="text-sm text-brown-light mt-1 italic">"{c.motivation}"</p>}
+              </div>
+              <span className="text-sm font-medium text-burgundy whitespace-nowrap ml-3">
+                {t('meetDetail.points', { count: c.points ?? 0 })}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

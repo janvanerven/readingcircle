@@ -216,6 +216,8 @@
   "meetDetail.confirmComplete": "Bijeenkomst voltooien? Dit rondt de bijeenkomst af en opent de Top 5-ranglijsten.",
   "meetDetail.confirmCancel": "Bijeenkomst annuleren? Dit kan niet eenvoudig ongedaan worden gemaakt.",
   "meetDetail.confirm": "Bevestigen",
+  "meetDetail.votingResults": "Stemresultaten",
+  "meetDetail.noVotesCast": "Deze bijeenkomst heeft de stemming overgeslagen.",
   "meetDetail.editMeet": "Bijeenkomst bewerken",
   "meetDetail.hostLabel": "Host",
 

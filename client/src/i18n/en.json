@@ -216,6 +216,8 @@
   "meetDetail.confirmComplete": "Complete this meet? This will finalize the meet and open Top 5 rankings.",
   "meetDetail.confirmCancel": "Cancel this meet? This cannot be easily undone.",
   "meetDetail.confirm": "Confirm",
+  "meetDetail.votingResults": "Voting Results",
+  "meetDetail.noVotesCast": "This meet skipped voting.",
   "meetDetail.editMeet": "Edit Meet",
   "meetDetail.hostLabel": "Host",
 
