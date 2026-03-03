@@ -5,8 +5,10 @@ import { useAuth } from '@/lib/auth';
 import { api, ApiError } from '@/lib/api';
 import { BookOpen, ArrowLeft, MessageSquare, Calendar, Pencil, Trash2, X, CheckCircle } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { phaseDotColors, phaseTextColors } from '@/lib/phase-styles';
 import type { BookDetailResponse } from '@readingcircle/shared';
 import { BOOK_TYPES } from '@readingcircle/shared';
+import type { MeetPhase } from '@readingcircle/shared';
 
 export function BookDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -119,14 +121,6 @@ export function BookDetailPage() {
     }
   };
 
-  const phaseColors: Record<string, string> = {
-    draft: 'bg-brown-lighter/20 text-brown',
-    voting: 'bg-burgundy/10 text-burgundy',
-    reading: 'bg-sage/20 text-sage-dark',
-    completed: 'bg-sage-light/30 text-sage-dark',
-    cancelled: 'bg-warm-gray text-brown-light',
-  };
-
   if (loading) {
     return <div className="text-brown-light animate-pulse font-serif text-lg">{t('common.loading')}</div>;
   }
@@ -147,7 +141,7 @@ export function BookDetailPage() {
       </Link>
 
       {/* Book info */}
-      <div className="bg-white rounded-xl border border-warm-gray p-6 sm:p-8">
+      <div className={`bg-white rounded-xl border border-warm-gray ${book.isRead ? 'border-l-4 border-l-sage' : ''} p-6 sm:p-8`}>
         {editing ? (
           <form onSubmit={handleEdit} className="space-y-4">
             <div className="flex items-center justify-between">
@@ -261,19 +255,24 @@ export function BookDetailPage() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl sm:text-3xl font-serif font-bold text-brown">{book.title}</h1>
                   {book.isRead && (
-                    <span className="inline-flex items-center gap-1 text-xs text-sage-dark bg-sage/20 px-2 py-0.5 rounded-full">
-                      <CheckCircle className="w-3 h-3" />
-                      {t('bookDetail.bookClubRead')}
-                    </span>
+                    <CheckCircle className="w-5 h-5 text-sage-dark flex-shrink-0" />
                   )}
                 </div>
                 <p className="text-lg text-brown-light mt-1">{t('common.by')} {book.author}</p>
                 {(book.year || book.country || book.originalLanguage || book.type) && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {book.year && <span className="text-xs text-brown-light bg-warm-gray-light px-2 py-0.5 rounded">{book.year}</span>}
-                    {book.country && <span className="text-xs text-brown-light bg-warm-gray-light px-2 py-0.5 rounded">{book.country}</span>}
-                    {book.originalLanguage && <span className="text-xs text-brown-light bg-warm-gray-light px-2 py-0.5 rounded">{book.originalLanguage}</span>}
-                    {book.type && <span className="text-xs text-burgundy bg-burgundy/10 px-2 py-0.5 rounded">{book.type}</span>}
+                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-2 text-xs text-brown-light">
+                    {[book.year, book.country, book.originalLanguage].filter(Boolean).map((val, i, arr) => (
+                      <span key={i}>
+                        {val}{i < arr.length - 1 && <span className="ml-1.5">·</span>}
+                      </span>
+                    ))}
+                    {[book.year, book.country, book.originalLanguage].some(Boolean) && book.type && <span>·</span>}
+                    {book.type && (
+                      <span className="inline-flex items-center gap-1 text-burgundy font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-burgundy inline-block" />
+                        {book.type}
+                      </span>
+                    )}
                   </div>
                 )}
                 <div className="flex items-center gap-3 mt-3">
@@ -369,7 +368,10 @@ export function BookDetailPage() {
                 <li key={m.id}>
                   <Link to={`/meets/${m.id}`} className="text-sm text-burgundy hover:text-burgundy-light flex items-center justify-between">
                     <span>{m.label}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${phaseColors[m.phase]}`}>{t('meets.phases.' + m.phase)}</span>
+                    <span className="flex items-center gap-1.5 text-xs">
+                      <span className={`w-2 h-2 rounded-full ${phaseDotColors[m.phase as MeetPhase]}`} />
+                      <span className={phaseTextColors[m.phase as MeetPhase]}>{t('meets.phases.' + m.phase)}</span>
+                    </span>
                   </Link>
                 </li>
               ))}
@@ -390,7 +392,10 @@ export function BookDetailPage() {
                 <li key={m.id}>
                   <Link to={`/meets/${m.id}`} className="text-sm text-burgundy hover:text-burgundy-light flex items-center justify-between">
                     <span>{m.label}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${phaseColors[m.phase]}`}>{t('meets.phases.' + m.phase)}</span>
+                    <span className="flex items-center gap-1.5 text-xs">
+                      <span className={`w-2 h-2 rounded-full ${phaseDotColors[m.phase as MeetPhase]}`} />
+                      <span className={phaseTextColors[m.phase as MeetPhase]}>{t('meets.phases.' + m.phase)}</span>
+                    </span>
                   </Link>
                 </li>
               ))}
