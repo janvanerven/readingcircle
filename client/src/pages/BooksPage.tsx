@@ -302,7 +302,7 @@ export function BooksPage() {
             <Link
               key={book.id}
               to={`/books/${book.id}`}
-              className="block bg-white rounded-xl border border-warm-gray p-6 hover:border-burgundy/30 hover:shadow-sm transition-all group"
+              className={`block bg-white rounded-xl border border-warm-gray ${book.isRead ? 'border-l-4 border-l-sage' : ''} p-6 hover:shadow-sm transition-all group`}
             >
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-lg bg-burgundy/10 flex items-center justify-center flex-shrink-0 group-hover:bg-burgundy/20 transition-colors">
@@ -312,23 +312,31 @@ export function BooksPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-serif font-semibold text-brown text-lg">{book.title}</h3>
                     {book.isRead && (
-                      <span className="inline-flex items-center gap-1 text-xs text-sage-dark bg-sage/20 px-2 py-0.5 rounded-full">
-                        <CheckCircle className="w-3 h-3" /> {t('books.read')}
-                      </span>
-                    )}
-                    {book.candidateCount > 0 && (
-                      <span className="inline-flex items-center gap-1 text-xs text-brown-light bg-warm-gray px-2 py-0.5 rounded-full">
-                        <ArrowUpDown className="w-3 h-3" /> {t('books.nominated', { count: book.candidateCount })}
-                      </span>
+                      <CheckCircle className="w-4 h-4 text-sage-dark flex-shrink-0" />
                     )}
                   </div>
                   <p className="text-sm text-brown-light mt-0.5">{t('common.by')} {book.author}</p>
-                  {(book.year || book.country || book.originalLanguage || book.type) && (
-                    <div className="flex flex-wrap gap-2 mt-1.5">
-                      {book.year && <span className="text-xs text-brown-light bg-warm-gray-light px-2 py-0.5 rounded">{book.year}</span>}
-                      {book.country && <span className="text-xs text-brown-light bg-warm-gray-light px-2 py-0.5 rounded">{book.country}</span>}
-                      {book.originalLanguage && <span className="text-xs text-brown-light bg-warm-gray-light px-2 py-0.5 rounded">{book.originalLanguage}</span>}
-                      {book.type && <span className="text-xs text-burgundy bg-burgundy/10 px-2 py-0.5 rounded">{book.type}</span>}
+                  {(book.year || book.country || book.originalLanguage || book.type || book.candidateCount > 0) && (
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1.5 text-xs text-brown-light">
+                      {[book.year, book.country, book.originalLanguage].filter(Boolean).map((val, i, arr) => (
+                        <span key={i}>
+                          {val}{i < arr.length - 1 && <span className="ml-1.5">·</span>}
+                        </span>
+                      ))}
+                      {[book.year, book.country, book.originalLanguage].some(Boolean) && book.type && <span>·</span>}
+                      {book.type && (
+                        <span className="inline-flex items-center gap-1 text-burgundy font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-burgundy inline-block" />
+                          {book.type}
+                        </span>
+                      )}
+                      {(book.year || book.country || book.originalLanguage || book.type) && book.candidateCount > 0 && <span>·</span>}
+                      {book.candidateCount > 0 && (
+                        <span className="inline-flex items-center gap-1">
+                          <ArrowUpDown className="w-3 h-3" />
+                          {t('books.nominated', { count: book.candidateCount })}
+                        </span>
+                      )}
                     </div>
                   )}
                   {book.introduction && (
