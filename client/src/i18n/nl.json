@@ -273,6 +273,17 @@
   "admin.noDataRows": "Geen gegevensrijen gevonden in het CSV-bestand.",
   "admin.noValidRows": "Geen rijen met zowel titel als auteur gevonden.",
 
+  "admin.meetsImport": "Historische bijeenkomsten importeren",
+  "admin.meetsImportDesc": "Upload een CSV om historische bijeenkomsten te importeren. Elke rij heeft een volgnummer, host-gebruikersnaam en boektitel nodig die in het systeem bestaan.",
+  "admin.meetsNoValidRows": "Geen rijen met volgnummer, host en boek gevonden.",
+  "admin.meetsImported_one": "{{count}} bijeenkomst succesvol geïmporteerd.",
+  "admin.meetsImported_other": "{{count}} bijeenkomsten succesvol geïmporteerd.",
+  "admin.meetSequence_column": "#",
+  "admin.meetHost_column": "Host",
+  "admin.meetBook_column": "Boek",
+  "admin.importMeets_one": "{{count}} bijeenkomst importeren",
+  "admin.importMeets_other": "{{count}} bijeenkomsten importeren",
+
   "settings.title": "Instellingen",
   "settings.changeUsername": "Gebruikersnaam wijzigen",
   "settings.currentUsername": "Huidige gebruikersnaam:",

@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { v4 as uuid } from 'uuid';
-import { authenticate, requireSetupComplete } from '../middleware/auth';
+import { authenticate, requireSetupComplete, requireAdmin } from '../middleware/auth';
 import { db, schema } from '../db';
 import { eq, and, sql } from 'drizzle-orm';
 import { AppError } from '../middleware/error';
@@ -391,6 +391,74 @@ meetRoutes.delete('/:id', (req: Request, res: Response, next: NextFunction) => {
 
     db.delete(schema.meets).where(eq(schema.meets.id, req.params.id as string)).run();
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// === Import Historical Meets ===
+
+meetRoutes.post('/import', requireAdmin, (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { meets: rows } = req.body as { meets: { sequence: number; host: string; book: string }[] };
+    if (!rows || !Array.isArray(rows)) throw new AppError(400, 'meets array is required');
+
+    const imported: string[] = [];
+    const errors: { row: number; error: string }[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]!;
+      const rowNum = i + 1;
+
+      const seq = Number(row.sequence);
+      if (!Number.isInteger(seq) || seq < 1) {
+        errors.push({ row: rowNum, error: `Invalid sequence: ${row.sequence}` });
+        continue;
+      }
+
+      const hostUser = db
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(sql`lower(${schema.users.username}) = lower(${row.host})`)
+        .get();
+      if (!hostUser) {
+        errors.push({ row: rowNum, error: `Host not found: ${row.host}` });
+        continue;
+      }
+
+      const book = db
+        .select({ id: schema.books.id })
+        .from(schema.books)
+        .where(sql`lower(${schema.books.title}) = lower(${row.book})`)
+        .get();
+      if (!book) {
+        errors.push({ row: rowNum, error: `Book not found: ${row.book}` });
+        continue;
+      }
+
+      const createdAt = new Date(Date.UTC(2000, 0, 1) + (seq - 1) * 60000).toISOString();
+      const meetId = uuid();
+
+      db.insert(schema.meets).values({
+        id: meetId,
+        hostId: hostUser.id,
+        phase: 'completed',
+        selectedBookId: book.id,
+        createdAt,
+        updatedAt: createdAt,
+      }).run();
+
+      db.insert(schema.meetCandidates).values({
+        id: uuid(),
+        meetId,
+        bookId: book.id,
+        addedBy: req.user!.id,
+      }).run();
+
+      imported.push(meetId);
+    }
+
+    res.json({ imported: imported.length, errors });
   } catch (err) {
     next(err);
   }

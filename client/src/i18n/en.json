@@ -273,6 +273,17 @@
   "admin.noDataRows": "No data rows found in the CSV file.",
   "admin.noValidRows": "No rows with both title and author found.",
 
+  "admin.meetsImport": "Import Historical Meets",
+  "admin.meetsImportDesc": "Upload a CSV to import historical meets. Each row needs a sequence number, host username, and book title that exist in the system.",
+  "admin.meetsNoValidRows": "No rows with sequence, host, and book found.",
+  "admin.meetsImported_one": "{{count}} meet imported successfully.",
+  "admin.meetsImported_other": "{{count}} meets imported successfully.",
+  "admin.meetSequence_column": "#",
+  "admin.meetHost_column": "Host",
+  "admin.meetBook_column": "Book",
+  "admin.importMeets_one": "Import {{count}} Meet",
+  "admin.importMeets_other": "Import {{count}} Meets",
+
   "settings.title": "Settings",
   "settings.changeUsername": "Change Username",
   "settings.currentUsername": "Current username:",

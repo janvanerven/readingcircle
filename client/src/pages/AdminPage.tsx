@@ -9,6 +9,7 @@ import type { UserResponse, InvitationResponse } from '@readingcircle/shared';
 import { formatDate } from '@/lib/utils';
 
 const CSV_HEADERS = ['title', 'author', 'year', 'country', 'originalLanguage', 'type', 'introduction'] as const;
+const MEET_CSV_HEADERS = ['sequence', 'host', 'book'] as const;
 
 interface ParsedRow {
   title: string;
@@ -18,6 +19,12 @@ interface ParsedRow {
   originalLanguage: string;
   type: string;
   introduction: string;
+}
+
+interface ParsedMeetRow {
+  sequence: string;
+  host: string;
+  book: string;
 }
 
 interface ImportResult {
@@ -82,6 +89,28 @@ function parseCSVLine(line: string): string[] {
   return values;
 }
 
+function parseMeetCSV(text: string): ParsedMeetRow[] {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return [];
+
+  const headerLine = lines[0]!;
+  const header = headerLine.split(',').map(h => h.trim().replace(/^"(.*)"$/, '$1'));
+  const headerMap = new Map(header.map((h, i) => [h.toLowerCase(), i]));
+
+  const getIndex = (name: string) => headerMap.get(name.toLowerCase()) ?? -1;
+
+  const rows: ParsedMeetRow[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i]!);
+    rows.push({
+      sequence: values[getIndex('sequence')] || '',
+      host: values[getIndex('host')] || '',
+      book: values[getIndex('book')] || '',
+    });
+  }
+  return rows;
+}
+
 export function AdminPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -90,6 +119,13 @@ export function AdminPage() {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [fileError, setFileError] = useState('');
+
+  // Meets import state
+  const meetFileInputRef = useRef<HTMLInputElement>(null);
+  const [meetPreview, setMeetPreview] = useState<ParsedMeetRow[]>([]);
+  const [meetImporting, setMeetImporting] = useState(false);
+  const [meetResult, setMeetResult] = useState<ImportResult | null>(null);
+  const [meetFileError, setMeetFileError] = useState('');
 
   // Member management state
   const [members, setMembers] = useState<UserResponse[]>([]);
@@ -225,6 +261,70 @@ export function AdminPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const downloadMeetTemplate = () => {
+    const content = MEET_CSV_HEADERS.join(',') + '\n';
+    const blob = new Blob([content], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'meets_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleMeetFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setMeetFileError('');
+    setMeetResult(null);
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const rows = parseMeetCSV(text);
+      if (rows.length === 0) {
+        setMeetFileError(t('admin.noDataRows'));
+        setMeetPreview([]);
+        return;
+      }
+      const valid = rows.filter(r => r.sequence && r.host && r.book);
+      if (valid.length === 0) {
+        setMeetFileError(t('admin.meetsNoValidRows'));
+        setMeetPreview([]);
+        return;
+      }
+      setMeetPreview(rows);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleMeetImport = async () => {
+    if (meetPreview.length === 0) return;
+    setMeetImporting(true);
+    setMeetResult(null);
+    try {
+      const data = await api<ImportResult>('/meets/import', {
+        method: 'POST',
+        body: JSON.stringify({ meets: meetPreview }),
+      });
+      setMeetResult(data);
+      setMeetPreview([]);
+      if (meetFileInputRef.current) meetFileInputRef.current.value = '';
+    } catch (err: unknown) {
+      setMeetFileError(err instanceof Error ? err.message : 'Import failed');
+    } finally {
+      setMeetImporting(false);
+    }
+  };
+
+  const clearMeetPreview = () => {
+    setMeetPreview([]);
+    setMeetFileError('');
+    setMeetResult(null);
+    if (meetFileInputRef.current) meetFileInputRef.current.value = '';
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-serif font-bold text-burgundy flex items-center gap-3">
@@ -342,6 +442,112 @@ export function AdminPage() {
               className="px-4 py-2 bg-burgundy hover:bg-burgundy-light text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
             >
               {importing ? t('admin.importing') : t('admin.importBooks', { count: preview.length })}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Import Historical Meets Section */}
+      <div className="bg-white rounded-xl border border-warm-gray p-6 space-y-4">
+        <h2 className="font-serif font-semibold text-brown text-lg">{t('admin.meetsImport')}</h2>
+        <p className="text-sm text-brown-light">
+          {t('admin.meetsImportDesc')}
+        </p>
+
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={downloadMeetTemplate}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-warm-gray text-brown hover:bg-warm-gray-light rounded-lg transition-colors text-sm font-medium"
+          >
+            <Download className="w-4 h-4" />
+            {t('admin.downloadTemplate')}
+          </button>
+
+          <label className="inline-flex items-center gap-2 px-4 py-2 bg-burgundy hover:bg-burgundy-light text-white rounded-lg transition-colors text-sm font-medium cursor-pointer">
+            <Upload className="w-4 h-4" />
+            {t('admin.selectCsvFile')}
+            <input
+              ref={meetFileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleMeetFileSelect}
+              className="hidden"
+            />
+          </label>
+        </div>
+
+        {meetFileError && (
+          <div className="flex items-center gap-2 bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {meetFileError}
+          </div>
+        )}
+
+        {meetResult && (
+          <div className="bg-sage/10 border border-sage/30 px-4 py-3 rounded-lg text-sm space-y-1">
+            <div className="flex items-center gap-2 text-sage-dark font-medium">
+              <CheckCircle className="w-4 h-4" />
+              {t('admin.meetsImported', { count: meetResult.imported })}
+            </div>
+            {meetResult.errors.length > 0 && (
+              <div className="text-brown-light mt-2">
+                <p className="font-medium text-brown">{t('admin.skipped', { count: meetResult.errors.length })}</p>
+                <ul className="list-disc list-inside mt-1 space-y-0.5">
+                  {meetResult.errors.map((err, i) => (
+                    <li key={i}>{t('admin.rowError', { row: err.row, error: err.error })}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Meet Preview table */}
+        {meetPreview.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-brown">
+                {t('admin.preview', { count: meetPreview.length })}
+              </h3>
+              <button onClick={clearMeetPreview} className="text-brown-lighter hover:text-brown p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="overflow-x-auto border border-warm-gray rounded-lg">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-warm-gray-light text-brown text-left">
+                    <th className="px-3 py-2 font-medium">{t('admin.meetSequence_column')}</th>
+                    <th className="px-3 py-2 font-medium">{t('admin.meetHost_column')}</th>
+                    <th className="px-3 py-2 font-medium">{t('admin.meetBook_column')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {meetPreview.map((row, i) => {
+                    const missing = !row.sequence || !row.host || !row.book;
+                    return (
+                      <tr key={i} className={`border-t border-warm-gray ${missing ? 'bg-red-50/50' : ''}`}>
+                        <td className={`px-3 py-2 ${!row.sequence ? 'text-red-500 italic' : 'text-brown-lighter'}`}>
+                          {row.sequence || t('admin.missing')}
+                        </td>
+                        <td className={`px-3 py-2 ${!row.host ? 'text-red-500 italic' : 'text-brown'}`}>
+                          {row.host || t('admin.missing')}
+                        </td>
+                        <td className={`px-3 py-2 ${!row.book ? 'text-red-500 italic' : 'text-brown'}`}>
+                          {row.book || t('admin.missing')}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <button
+              onClick={handleMeetImport}
+              disabled={meetImporting}
+              className="px-4 py-2 bg-burgundy hover:bg-burgundy-light text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
+            >
+              {meetImporting ? t('admin.importing') : t('admin.importMeets', { count: meetPreview.length })}
             </button>
           </div>
         )}
