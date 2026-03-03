@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { Calendar, Plus, MapPin } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
-import type { MeetResponse } from '@readingcircle/shared';
+import { phaseBorderColors, phaseTextColors, phaseIcons } from '@/lib/phase-styles';
+import type { MeetResponse, MeetPhase } from '@readingcircle/shared';
 
 type MeetWithLabel = MeetResponse & { label: string };
 
@@ -50,13 +51,6 @@ export function MeetsPage() {
   };
 
   const phaseOrder = ['draft', 'voting', 'reading', 'completed', 'cancelled'];
-  const phaseColors: Record<string, string> = {
-    draft: 'bg-brown-lighter/20 text-brown',
-    voting: 'bg-burgundy/10 text-burgundy',
-    reading: 'bg-sage/20 text-sage-dark',
-    completed: 'bg-sage-light/30 text-sage-dark',
-    cancelled: 'bg-warm-gray text-brown-light',
-  };
 
   if (loading) {
     return <div className="text-brown-light animate-pulse font-serif text-lg">{t('meets.loadingMeets')}</div>;
@@ -137,24 +131,28 @@ export function MeetsPage() {
                 <Link
                   key={meet.id}
                   to={`/meets/${meet.id}`}
-                  className="bg-white rounded-xl border border-warm-gray p-5 hover:border-burgundy/30 hover:shadow-sm transition-all block"
+                  className={`bg-white rounded-xl border border-warm-gray border-l-4 ${phaseBorderColors[meet.phase as MeetPhase]} p-5 hover:shadow-sm transition-all block`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="font-medium text-brown">{meet.label}</h3>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-brown-light">
-                        <span>{t('meets.host', { name: meet.hostUsername })}</span>
-                        {meet.location && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" /> {meet.location}
+                  <div className="min-w-0">
+                    <h3 className="font-medium text-brown">{meet.label}</h3>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-brown-light">
+                      <span>{t('meets.host', { name: meet.hostUsername })}</span>
+                      {meet.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3" /> {meet.location}
+                        </span>
+                      )}
+                      {meet.selectedDate && <span>{formatDateTime(meet.selectedDate)}</span>}
+                      {(() => {
+                        const PhaseIcon = phaseIcons[meet.phase as MeetPhase];
+                        return (
+                          <span className={`flex items-center gap-1 font-medium ${phaseTextColors[meet.phase as MeetPhase]}`}>
+                            <PhaseIcon className="w-3.5 h-3.5" />
+                            {t(`meets.phases.${meet.phase}`)}
                           </span>
-                        )}
-                        {meet.selectedDate && <span>{formatDateTime(meet.selectedDate)}</span>}
-                      </div>
+                        );
+                      })()}
                     </div>
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${phaseColors[meet.phase]}`}>
-                      {t(`meets.phases.${meet.phase}`)}
-                    </span>
                   </div>
                 </Link>
               ))}

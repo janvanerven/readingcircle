@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { BookOpen, Calendar, Users, ArrowRight, Trophy } from 'lucide-react';
-import type { MeetResponse, BookResponse, AggregatedRankingResponse, LatestTop5Response } from '@readingcircle/shared';
+import { phaseBorderColors, phaseTextColors, phaseIcons } from '@/lib/phase-styles';
+import type { MeetResponse, BookResponse, AggregatedRankingResponse, LatestTop5Response, MeetPhase } from '@readingcircle/shared';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -39,13 +40,6 @@ export function DashboardPage() {
 
   const activeMeets = meets.filter(m => m.phase !== 'completed' && m.phase !== 'cancelled');
 
-  const phaseColors: Record<string, string> = {
-    draft: 'bg-brown-lighter/20 text-brown',
-    voting: 'bg-burgundy/10 text-burgundy',
-    reading: 'bg-sage/20 text-sage-dark',
-    completed: 'bg-sage-light/30 text-sage-dark',
-    cancelled: 'bg-warm-gray text-brown-light',
-  };
 
   if (loading) {
     return <div className="text-brown-light animate-pulse font-serif text-lg">{t('common.loading')}</div>;
@@ -115,19 +109,22 @@ export function DashboardPage() {
               <Link
                 key={meet.id}
                 to={`/meets/${meet.id}`}
-                className="bg-white rounded-xl border border-warm-gray p-5 hover:border-burgundy/30 transition-colors block"
+                className={`bg-white rounded-xl border border-warm-gray border-l-4 ${phaseBorderColors[meet.phase as MeetPhase]} p-5 hover:shadow-sm transition-colors block`}
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-medium text-brown">{meet.label}</h3>
-                    <p className="text-sm text-brown-light mt-1">
-                      {t('dashboard.hostedBy', { name: meet.hostUsername })}
-                      {meet.location && ` — ${meet.location}`}
-                    </p>
+                <div>
+                  <h3 className="font-medium text-brown">{meet.label}</h3>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-brown-light">
+                    <span>{t('dashboard.hostedBy', { name: meet.hostUsername })}{meet.location && ` — ${meet.location}`}</span>
+                    {(() => {
+                      const PhaseIcon = phaseIcons[meet.phase as MeetPhase];
+                      return (
+                        <span className={`flex items-center gap-1 font-medium ${phaseTextColors[meet.phase as MeetPhase]}`}>
+                          <PhaseIcon className="w-3.5 h-3.5" />
+                          {t('meets.phases.' + meet.phase)}
+                        </span>
+                      );
+                    })()}
                   </div>
-                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${phaseColors[meet.phase]}`}>
-                    {t('meets.phases.' + meet.phase)}
-                  </span>
                 </div>
               </Link>
             ))}
