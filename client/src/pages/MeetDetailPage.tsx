@@ -387,7 +387,7 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
   // Determine if selection is allowed
   const canSelectInDraft = meet.phase === 'draft' && meet.candidates.length === 1;
   const isRevealed = meet.votingPointsRevealed;
-  const maxPoints = isRevealed ? Math.max(...meet.candidates.map(c => c.points ?? 0)) : 0;
+  const maxPoints = isRevealed && meet.candidates.length > 0 ? Math.max(...meet.candidates.map(c => c.points ?? 0)) : 0;
   const topCandidateBookIds = isRevealed
     ? new Set(meet.candidates.filter(c => (c.points ?? 0) === maxPoints).map(c => c.bookId))
     : new Set<string>();

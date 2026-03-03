@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid';
-import { db, schema } from '../db';
+import { db, schema, sqlite } from '../db';
 import { eq, sql } from 'drizzle-orm';
 import { hashPassword, verifyPassword, validatePassword } from '../utils/password';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken, generateMagicLinkToken } from '../utils/tokens';
@@ -39,7 +39,7 @@ export async function seedAdmin(): Promise<void> {
 }
 
 export async function login(username: string, password: string) {
-  const user = db.select().from(schema.users).where(eq(schema.users.username, username)).get();
+  const user = db.select().from(schema.users).where(sql`lower(${schema.users.username}) = lower(${username})`).get();
   if (!user) {
     throw new AppError(401, 'Invalid username or password');
   }
@@ -182,11 +182,6 @@ export async function validateInvitation(token: string) {
 }
 
 export async function registerWithInvitation(token: string, username: string, password: string) {
-  const invitation = db.select().from(schema.invitations).where(eq(schema.invitations.token, token)).get();
-  if (!invitation) throw new AppError(404, 'Invitation not found');
-  if (invitation.usedAt) throw new AppError(400, 'Invitation has already been used');
-  if (new Date(invitation.expiresAt) < new Date()) throw new AppError(400, 'Invitation has expired');
-
   const trimmedUsername = username.trim();
   if (!isValidUsername(trimmedUsername)) {
     throw new AppError(400, 'Username must be 2-30 characters: letters, numbers, spaces, hyphens, underscores. Must start and end with a letter or number.');
@@ -194,29 +189,43 @@ export async function registerWithInvitation(token: string, username: string, pa
   const validationError = validatePassword(password);
   if (validationError) throw new AppError(400, validationError);
 
-  // Case-insensitive uniqueness check
-  const existingUser = db.select().from(schema.users).where(sql`lower(${schema.users.username}) = ${trimmedUsername.toLowerCase()}`).get();
-  if (existingUser) throw new AppError(400, 'Username already taken');
+  // Hash password before transaction (async operation)
+  const passwordHash = await hashPassword(password);
 
   const now = new Date().toISOString();
-  const passwordHash = await hashPassword(password);
   const userId = uuid();
 
-  db.insert(schema.users).values({
-    id: userId,
-    username: trimmedUsername,
-    email: invitation.email,
-    passwordHash,
-    isAdmin: false,
-    isTemporary: false,
-    createdAt: now,
-    updatedAt: now,
-  }).run();
+  // Use a synchronous transaction to prevent TOCTOU race on invitation use
+  const register = sqlite.transaction(() => {
+    const invitation = db.select().from(schema.invitations).where(eq(schema.invitations.token, token)).get();
+    if (!invitation) throw new AppError(404, 'Invitation not found');
+    if (invitation.usedAt) throw new AppError(400, 'Invitation has already been used');
+    if (new Date(invitation.expiresAt) < new Date()) throw new AppError(400, 'Invitation has expired');
 
-  db.update(schema.invitations)
-    .set({ usedAt: now })
-    .where(eq(schema.invitations.id, invitation.id))
-    .run();
+    // Case-insensitive uniqueness check
+    const existingUser = db.select().from(schema.users).where(sql`lower(${schema.users.username}) = ${trimmedUsername.toLowerCase()}`).get();
+    if (existingUser) throw new AppError(400, 'Username already taken');
+
+    db.insert(schema.users).values({
+      id: userId,
+      username: trimmedUsername,
+      email: invitation.email,
+      passwordHash,
+      isAdmin: false,
+      isTemporary: false,
+      createdAt: now,
+      updatedAt: now,
+    }).run();
+
+    db.update(schema.invitations)
+      .set({ usedAt: now })
+      .where(eq(schema.invitations.id, invitation.id))
+      .run();
+
+    return invitation.email;
+  });
+
+  const email = register();
 
   const authUser = {
     id: userId,

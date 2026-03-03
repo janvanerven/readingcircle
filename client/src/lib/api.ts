@@ -11,19 +11,29 @@ export function setOnAuthError(handler: () => void) {
   onAuthError = handler;
 }
 
+let refreshPromise: Promise<string | null> | null = null;
+
 async function refreshToken(): Promise<string | null> {
-  try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    accessToken = data.accessToken;
-    return data.accessToken;
-  } catch {
-    return null;
-  }
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      accessToken = data.accessToken;
+      return data.accessToken;
+    } catch {
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 export async function api<T = unknown>(
@@ -64,6 +74,10 @@ export async function api<T = unknown>(
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: 'Request failed' }));
     throw new ApiError(res.status, body.error || 'Request failed', body.code);
+  }
+
+  if (res.status === 204 || res.headers.get('content-length') === '0') {
+    return undefined as T;
   }
 
   return res.json();

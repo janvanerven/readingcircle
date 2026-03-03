@@ -4,8 +4,8 @@ import { rateLimit } from 'express-rate-limit';
 import { login, refreshAccessToken, setupAccount, registerWithInvitation, validateInvitation } from '../services/auth';
 import { authenticate, requireSetupComplete } from '../middleware/auth';
 import { IS_PRODUCTION } from '../config';
-import { db, schema } from '../db';
-import { eq, sql } from 'drizzle-orm';
+import { db, schema, sqlite } from '../db';
+import { eq, and, sql } from 'drizzle-orm';
 import { hashPassword, verifyPassword, validatePassword } from '../utils/password';
 import { generateAccessToken, generateRefreshToken, generateMagicLinkToken } from '../utils/tokens';
 import { isValidUsername, isValidEmail } from '../utils/validation';
@@ -224,6 +224,14 @@ authRoutes.post('/forgot-password', authLimiter, async (req: Request, res: Respo
 
     const user = db.select().from(schema.users).where(eq(schema.users.email, email)).get();
     if (user) {
+      // Invalidate any existing unused reset tokens for this user
+      db.delete(schema.passwordResetTokens)
+        .where(and(
+          eq(schema.passwordResetTokens.userId, user.id),
+          sql`${schema.passwordResetTokens.usedAt} IS NULL`,
+        ))
+        .run();
+
       const token = generateMagicLinkToken();
       const now = new Date().toISOString();
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
@@ -255,27 +263,33 @@ authRoutes.post('/reset-password', authLimiter, async (req: Request, res: Respon
       return;
     }
 
-    const resetToken = db.select().from(schema.passwordResetTokens).where(eq(schema.passwordResetTokens.token, token)).get();
-    if (!resetToken) throw new AppError(400, 'Invalid or expired reset link');
-    if (resetToken.usedAt) throw new AppError(400, 'This reset link has already been used');
-    if (new Date(resetToken.expiresAt) < new Date()) throw new AppError(400, 'This reset link has expired');
-
     const validationError = validatePassword(password);
     if (validationError) throw new AppError(400, validationError);
 
+    // Hash password before transaction (async operation)
     const passwordHash = await hashPassword(password);
     const now = new Date().toISOString();
 
-    db.update(schema.users)
-      .set({ passwordHash, updatedAt: now })
-      .where(eq(schema.users.id, resetToken.userId))
-      .run();
+    // Use a synchronous transaction to prevent TOCTOU race on token use
+    const resetPassword = sqlite.transaction(() => {
+      const resetToken = db.select().from(schema.passwordResetTokens).where(eq(schema.passwordResetTokens.token, token)).get();
+      if (!resetToken) throw new AppError(400, 'Invalid or expired reset link');
+      if (resetToken.usedAt) throw new AppError(400, 'This reset link has already been used');
+      if (new Date(resetToken.expiresAt) < new Date()) throw new AppError(400, 'This reset link has expired');
 
-    db.update(schema.passwordResetTokens)
-      .set({ usedAt: now })
-      .where(eq(schema.passwordResetTokens.id, resetToken.id))
-      .run();
+      // Mark token used first to prevent concurrent use
+      db.update(schema.passwordResetTokens)
+        .set({ usedAt: now })
+        .where(eq(schema.passwordResetTokens.id, resetToken.id))
+        .run();
 
+      db.update(schema.users)
+        .set({ passwordHash, updatedAt: now })
+        .where(eq(schema.users.id, resetToken.userId))
+        .run();
+    });
+
+    resetPassword();
     res.json({ ok: true });
   } catch (err) {
     next(err);

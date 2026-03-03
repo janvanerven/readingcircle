@@ -9,8 +9,8 @@ export const userRoutes = Router();
 userRoutes.use(authenticate);
 userRoutes.use(requireSetupComplete);
 
-// List all circle members (basic info)
-userRoutes.get('/', (_req: Request, res: Response) => {
+// List all circle members (basic info — email only visible to admins)
+userRoutes.get('/', (req: Request, res: Response) => {
   const users = db.select({
     id: schema.users.id,
     username: schema.users.username,
@@ -19,6 +19,11 @@ userRoutes.get('/', (_req: Request, res: Response) => {
     isTemporary: schema.users.isTemporary,
     createdAt: schema.users.createdAt,
   }).from(schema.users).all();
+
+  if (!req.user?.isAdmin) {
+    res.json(users.map(({ email: _email, ...rest }) => rest));
+    return;
+  }
 
   res.json(users);
 });
@@ -33,22 +38,30 @@ userRoutes.get('/profiles', (_req: Request, res: Response) => {
     .where(eq(schema.users.isTemporary, false))
     .all();
 
-  const profiles = users.map(u => {
-    const hostCount = db.select({ count: sql<number>`count(*)` })
-      .from(schema.meets)
-      .where(and(
-        eq(schema.meets.hostId, u.id),
-        sql`${schema.meets.phase} != 'cancelled'`,
-      ))
-      .get()!.count;
+  // Batch: host counts in one query
+  const hostCounts = db.select({
+    hostId: schema.meets.hostId,
+    count: sql<number>`count(*)`.as('count'),
+  }).from(schema.meets)
+    .where(sql`${schema.meets.phase} != 'cancelled'`)
+    .groupBy(schema.meets.hostId)
+    .all();
+  const hostMap = new Map(hostCounts.map(r => [r.hostId, r.count]));
 
-    const readBookCount = db.select({ count: sql<number>`count(*)` })
-      .from(schema.userBooks)
-      .where(eq(schema.userBooks.userId, u.id))
-      .get()!.count;
+  // Batch: read book counts in one query
+  const readCounts = db.select({
+    userId: schema.userBooks.userId,
+    count: sql<number>`count(*)`.as('count'),
+  }).from(schema.userBooks)
+    .groupBy(schema.userBooks.userId)
+    .all();
+  const readMap = new Map(readCounts.map(r => [r.userId, r.count]));
 
-    return { ...u, hostCount, readBookCount };
-  });
+  const profiles = users.map(u => ({
+    ...u,
+    hostCount: hostMap.get(u.id) || 0,
+    readBookCount: readMap.get(u.id) || 0,
+  }));
 
   profiles.sort((a, b) => b.hostCount - a.hostCount);
   res.json(profiles);

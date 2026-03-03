@@ -52,6 +52,117 @@ meetRoutes.get('/', (_req: Request, res: Response) => {
   res.json(meets);
 });
 
+// Get latest Top 5 per member (from the most recent meet that has top5 entries)
+// NOTE: Must be registered BEFORE /:id to avoid being shadowed by the parametric route
+meetRoutes.get('/top5/latest', (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const latestMeetWithTop5 = db
+      .select({
+        meetId: schema.meetTop5.meetId,
+        meetCreatedAt: schema.meets.createdAt,
+        hostUsername: schema.users.username,
+        selectedBookTitle: schema.books.title,
+      })
+      .from(schema.meetTop5)
+      .leftJoin(schema.meets, eq(schema.meetTop5.meetId, schema.meets.id))
+      .leftJoin(schema.users, eq(schema.meets.hostId, schema.users.id))
+      .leftJoin(schema.books, eq(schema.meets.selectedBookId, schema.books.id))
+      .orderBy(sql`${schema.meets.createdAt} DESC`)
+      .limit(1)
+      .get();
+
+    if (!latestMeetWithTop5) {
+      res.json(null);
+      return;
+    }
+
+    const meetLabel = getMeetLabel(latestMeetWithTop5.hostUsername!, latestMeetWithTop5.selectedBookTitle);
+
+    const entries = db
+      .select({
+        userId: schema.meetTop5.userId,
+        username: schema.users.username,
+        bookId: schema.meetTop5.bookId,
+        bookTitle: schema.books.title,
+        bookAuthor: schema.books.author,
+        rank: schema.meetTop5.rank,
+      })
+      .from(schema.meetTop5)
+      .leftJoin(schema.users, eq(schema.meetTop5.userId, schema.users.id))
+      .leftJoin(schema.books, eq(schema.meetTop5.bookId, schema.books.id))
+      .where(eq(schema.meetTop5.meetId, latestMeetWithTop5.meetId))
+      .all();
+
+    const userMap = new Map<string, { username: string; entries: { bookId: string; bookTitle: string; bookAuthor: string; rank: number }[] }>();
+    for (const e of entries) {
+      const existing = userMap.get(e.userId);
+      const entry = { bookId: e.bookId, bookTitle: e.bookTitle!, bookAuthor: e.bookAuthor!, rank: e.rank };
+      if (existing) {
+        existing.entries.push(entry);
+      } else {
+        userMap.set(e.userId, { username: e.username!, entries: [entry] });
+      }
+    }
+
+    const userTop5s = Array.from(userMap.entries()).map(([userId, data]) => ({
+      userId,
+      username: data.username,
+      entries: data.entries.sort((a, b) => a.rank - b.rank),
+    }));
+
+    res.json({
+      meetId: latestMeetWithTop5.meetId,
+      meetLabel,
+      userTop5s,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Aggregated ranking
+// NOTE: Must be registered BEFORE /:id to avoid being shadowed by the parametric route
+meetRoutes.get('/top5/aggregate', (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const entries = db
+      .select({
+        bookId: schema.meetTop5.bookId,
+        bookTitle: schema.books.title,
+        bookAuthor: schema.books.author,
+        rank: schema.meetTop5.rank,
+      })
+      .from(schema.meetTop5)
+      .leftJoin(schema.books, eq(schema.meetTop5.bookId, schema.books.id))
+      .all();
+
+    const aggregation = new Map<string, { bookTitle: string; bookAuthor: string; totalPoints: number; appearances: number }>();
+
+    for (const entry of entries) {
+      const points = 6 - entry.rank;
+      const existing = aggregation.get(entry.bookId);
+      if (existing) {
+        existing.totalPoints += points;
+        existing.appearances += 1;
+      } else {
+        aggregation.set(entry.bookId, {
+          bookTitle: entry.bookTitle!,
+          bookAuthor: entry.bookAuthor!,
+          totalPoints: points,
+          appearances: 1,
+        });
+      }
+    }
+
+    const result = Array.from(aggregation.entries())
+      .map(([bookId, data]) => ({ bookId, ...data }))
+      .sort((a, b) => b.totalPoints - a.totalPoints);
+
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Get meet detail
 meetRoutes.get('/:id', (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -96,43 +207,51 @@ meetRoutes.get('/:id', (req: Request, res: Response, next: NextFunction) => {
       .where(eq(schema.meetCandidates.meetId, req.params.id as string))
       .all();
 
-    // Check which candidate books were already selected in other meets
-    const candidatesWithWarning = candidates.map(c => {
-      const alreadySelected = db
-        .select({ id: schema.meets.id })
-        .from(schema.meets)
-        .where(and(
-          eq(schema.meets.selectedBookId, c.bookId),
-          eq(schema.meets.phase, 'completed'),
-        ))
-        .all();
-      return { ...c, alreadySelectedInMeet: alreadySelected.length > 0 };
-    });
+    // Batch: which candidate books were already selected in completed meets
+    const completedSelections = db
+      .select({ selectedBookId: schema.meets.selectedBookId })
+      .from(schema.meets)
+      .where(eq(schema.meets.phase, 'completed'))
+      .all();
+    const completedBookIds = new Set(completedSelections.map(m => m.selectedBookId).filter(Boolean));
 
-    // Add points if revealed
-    const candidatesWithPoints = candidatesWithWarning.map(c => {
-      if (meet.votingPointsRevealed || meet.phase === 'reading' || meet.phase === 'completed') {
-        const votes = db
-          .select({ points: schema.meetCandidateVotes.points })
-          .from(schema.meetCandidateVotes)
-          .where(eq(schema.meetCandidateVotes.candidateId, c.id))
-          .all();
-        const totalPoints = votes.reduce((sum, v) => sum + v.points, 0);
-        return { ...c, points: totalPoints };
-      }
-      return c;
-    });
+    // Batch: vote points for all candidates in this meet
+    const allVotes = db
+      .select({
+        candidateId: schema.meetCandidateVotes.candidateId,
+        points: schema.meetCandidateVotes.points,
+      })
+      .from(schema.meetCandidateVotes)
+      .where(eq(schema.meetCandidateVotes.meetId, req.params.id as string))
+      .all();
+    const pointsByCandidateId = new Map<string, number>();
+    for (const v of allVotes) {
+      pointsByCandidateId.set(v.candidateId, (pointsByCandidateId.get(v.candidateId) || 0) + v.points);
+    }
 
-    // Enrich with readByUsers
-    const candidatesFinal = candidatesWithPoints.map(c => {
-      const readByUsers = db
-        .select({ id: schema.userBooks.userId, username: schema.users.username })
-        .from(schema.userBooks)
-        .leftJoin(schema.users, eq(schema.userBooks.userId, schema.users.id))
-        .where(eq(schema.userBooks.bookId, c.bookId))
-        .all();
-      return { ...c, readByUsers };
-    });
+    // Batch: readByUsers for all candidate books
+    const candidateBookIds = [...new Set(candidates.map(c => c.bookId))];
+    const allReadByUsers = candidateBookIds.length > 0
+      ? db.select({ bookId: schema.userBooks.bookId, userId: schema.userBooks.userId, username: schema.users.username })
+          .from(schema.userBooks)
+          .leftJoin(schema.users, eq(schema.userBooks.userId, schema.users.id))
+          .all()
+          .filter(r => candidateBookIds.includes(r.bookId))
+      : [];
+    const readByBookId = new Map<string, { id: string; username: string | null }[]>();
+    for (const r of allReadByUsers) {
+      const existing = readByBookId.get(r.bookId) || [];
+      existing.push({ id: r.userId, username: r.username });
+      readByBookId.set(r.bookId, existing);
+    }
+
+    const showPoints = meet.votingPointsRevealed || meet.phase === 'reading' || meet.phase === 'completed';
+    const candidatesFinal = candidates.map(c => ({
+      ...c,
+      alreadySelectedInMeet: completedBookIds.has(c.bookId),
+      ...(showPoints ? { points: pointsByCandidateId.get(c.id) || 0 } : {}),
+      readByUsers: readByBookId.get(c.bookId) || [],
+    }));
 
     // Vote status (who has voted)
     const allUsers = db.select({ id: schema.users.id, username: schema.users.username })
@@ -153,27 +272,37 @@ meetRoutes.get('/:id', (req: Request, res: Response, next: NextFunction) => {
       hasVoted: votedUserIds.has(u.id),
     }));
 
-    // Date options
+    // Date options with batched votes
     const dateOptions = db
       .select()
       .from(schema.meetDateOptions)
       .where(eq(schema.meetDateOptions.meetId, req.params.id as string))
       .all();
 
-    const dateOptionsWithVotes = dateOptions.map(opt => {
-      const votes = db
-        .select({
+    const dateOptionIds = dateOptions.map(o => o.id);
+    const allDateVotes = dateOptionIds.length > 0
+      ? db.select({
+          dateOptionId: schema.meetDateVotes.dateOptionId,
           userId: schema.meetDateVotes.userId,
           username: schema.users.username,
           availability: schema.meetDateVotes.availability,
         })
         .from(schema.meetDateVotes)
         .leftJoin(schema.users, eq(schema.meetDateVotes.userId, schema.users.id))
-        .where(eq(schema.meetDateVotes.dateOptionId, opt.id))
-        .all();
+        .all()
+        .filter(v => dateOptionIds.includes(v.dateOptionId))
+      : [];
+    const dateVotesByOptionId = new Map<string, typeof allDateVotes>();
+    for (const v of allDateVotes) {
+      const existing = dateVotesByOptionId.get(v.dateOptionId) || [];
+      existing.push(v);
+      dateVotesByOptionId.set(v.dateOptionId, existing);
+    }
 
-      return { ...opt, votes };
-    });
+    const dateOptionsWithVotes = dateOptions.map(opt => ({
+      ...opt,
+      votes: dateVotesByOptionId.get(opt.id) || [],
+    }));
 
     // Top 5
     const top5Entries = db
@@ -729,8 +858,19 @@ meetRoutes.post('/:id/candidates/resolve-tie', (req: Request, res: Response, nex
       throw new AppError(403, 'Only the host or an admin can resolve a tie');
     }
 
+    if (meet.phase !== 'voting') throw new AppError(400, 'Ties can only be resolved during the voting phase');
+    if (!meet.votingPointsRevealed) throw new AppError(400, 'Scores must be revealed before resolving a tie');
+
     const { bookId } = req.body;
     if (!bookId) throw new AppError(400, 'bookId is required');
+
+    // Validate bookId is a candidate in this meet
+    const candidate = db.select().from(schema.meetCandidates)
+      .where(and(
+        eq(schema.meetCandidates.meetId, req.params.id as string),
+        eq(schema.meetCandidates.bookId, bookId),
+      )).get();
+    if (!candidate) throw new AppError(400, 'The selected book is not a candidate in this meet');
 
     const now = new Date().toISOString();
     db.update(schema.meets)
@@ -802,6 +942,21 @@ meetRoutes.put('/:id/date-votes', (req: Request, res: Response, next: NextFuncti
     for (const vote of votes) {
       if (!isValidAvailability(vote.availability)) {
         throw new AppError(400, 'Invalid availability value. Must be: available, not_available, maybe, or no_response');
+      }
+    }
+
+    // Validate all dateOptionIds belong to this meet
+    const validOptionIds = new Set(
+      db.select({ id: schema.meetDateOptions.id })
+        .from(schema.meetDateOptions)
+        .where(eq(schema.meetDateOptions.meetId, req.params.id as string))
+        .all()
+        .map(o => o.id)
+    );
+
+    for (const vote of votes) {
+      if (!validOptionIds.has(vote.dateOptionId)) {
+        throw new AppError(400, `Date option ${vote.dateOptionId} does not belong to this meet`);
       }
     }
 
@@ -927,115 +1082,3 @@ meetRoutes.post('/:id/top5', (req: Request, res: Response, next: NextFunction) =
   }
 });
 
-// Get latest Top 5 per member (from the most recent meet that has top5 entries)
-meetRoutes.get('/top5/latest', (_req: Request, res: Response, next: NextFunction) => {
-  try {
-    // Find the most recent meet (by createdAt) that has top5 entries
-    const latestMeetWithTop5 = db
-      .select({
-        meetId: schema.meetTop5.meetId,
-        meetCreatedAt: schema.meets.createdAt,
-        hostUsername: schema.users.username,
-        selectedBookTitle: schema.books.title,
-      })
-      .from(schema.meetTop5)
-      .leftJoin(schema.meets, eq(schema.meetTop5.meetId, schema.meets.id))
-      .leftJoin(schema.users, eq(schema.meets.hostId, schema.users.id))
-      .leftJoin(schema.books, eq(schema.meets.selectedBookId, schema.books.id))
-      .orderBy(sql`${schema.meets.createdAt} DESC`)
-      .limit(1)
-      .get();
-
-    if (!latestMeetWithTop5) {
-      res.json(null);
-      return;
-    }
-
-    const meetLabel = getMeetLabel(latestMeetWithTop5.hostUsername!, latestMeetWithTop5.selectedBookTitle);
-
-    const entries = db
-      .select({
-        userId: schema.meetTop5.userId,
-        username: schema.users.username,
-        bookId: schema.meetTop5.bookId,
-        bookTitle: schema.books.title,
-        bookAuthor: schema.books.author,
-        rank: schema.meetTop5.rank,
-      })
-      .from(schema.meetTop5)
-      .leftJoin(schema.users, eq(schema.meetTop5.userId, schema.users.id))
-      .leftJoin(schema.books, eq(schema.meetTop5.bookId, schema.books.id))
-      .where(eq(schema.meetTop5.meetId, latestMeetWithTop5.meetId))
-      .all();
-
-    // Group by user
-    const userMap = new Map<string, { username: string; entries: { bookId: string; bookTitle: string; bookAuthor: string; rank: number }[] }>();
-    for (const e of entries) {
-      const existing = userMap.get(e.userId);
-      const entry = { bookId: e.bookId, bookTitle: e.bookTitle!, bookAuthor: e.bookAuthor!, rank: e.rank };
-      if (existing) {
-        existing.entries.push(entry);
-      } else {
-        userMap.set(e.userId, { username: e.username!, entries: [entry] });
-      }
-    }
-
-    // Sort entries by rank within each user
-    const userTop5s = Array.from(userMap.entries()).map(([userId, data]) => ({
-      userId,
-      username: data.username,
-      entries: data.entries.sort((a, b) => a.rank - b.rank),
-    }));
-
-    res.json({
-      meetId: latestMeetWithTop5.meetId,
-      meetLabel,
-      userTop5s,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// Aggregated ranking
-meetRoutes.get('/top5/aggregate', (_req: Request, res: Response, next: NextFunction) => {
-  try {
-    // Score: rank 1 = 5 points, rank 2 = 4 points, etc.
-    const entries = db
-      .select({
-        bookId: schema.meetTop5.bookId,
-        bookTitle: schema.books.title,
-        bookAuthor: schema.books.author,
-        rank: schema.meetTop5.rank,
-      })
-      .from(schema.meetTop5)
-      .leftJoin(schema.books, eq(schema.meetTop5.bookId, schema.books.id))
-      .all();
-
-    const aggregation = new Map<string, { bookTitle: string; bookAuthor: string; totalPoints: number; appearances: number }>();
-
-    for (const entry of entries) {
-      const points = 6 - entry.rank; // rank 1 = 5pts, rank 2 = 4pts, etc.
-      const existing = aggregation.get(entry.bookId);
-      if (existing) {
-        existing.totalPoints += points;
-        existing.appearances += 1;
-      } else {
-        aggregation.set(entry.bookId, {
-          bookTitle: entry.bookTitle!,
-          bookAuthor: entry.bookAuthor!,
-          totalPoints: points,
-          appearances: 1,
-        });
-      }
-    }
-
-    const result = Array.from(aggregation.entries())
-      .map(([bookId, data]) => ({ bookId, ...data }))
-      .sort((a, b) => b.totalPoints - a.totalPoints);
-
-    res.json(result);
-  } catch (err) {
-    next(err);
-  }
-});
