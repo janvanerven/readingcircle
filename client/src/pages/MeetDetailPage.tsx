@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDateTime, toLocalDateTimeInput } from '@/lib/utils';
 import { ArrowLeft, Calendar, MapPin, BookOpen, Vote, Clock, Trophy, AlertTriangle, Check, X, Minus, Eye, Trash2, ChevronUp, ChevronDown, Pencil } from 'lucide-react';
+import { PhaseStepper } from '@/components/PhaseStepper';
 import type { MeetDetailResponse, BookResponse, Top5EntryResponse, AggregatedRankingResponse, UserResponse } from '@readingcircle/shared';
 import { VOTING_POINTS_TOTAL } from '@readingcircle/shared';
 
@@ -48,14 +49,6 @@ export function MeetDetailPage() {
   if (!meet) return <div className="text-center py-12"><p className="text-brown-light">{t('meetDetail.meetNotFound')}</p></div>;
 
   const isHostOrAdmin = meet.hostId === user?.id || user?.isAdmin;
-
-  const phaseColors: Record<string, string> = {
-    draft: 'bg-brown-lighter/20 text-brown',
-    voting: 'bg-burgundy/10 text-burgundy',
-    reading: 'bg-sage/20 text-sage-dark',
-    completed: 'bg-sage-light/30 text-sage-dark',
-    cancelled: 'bg-warm-gray text-brown-light',
-  };
 
   return (
     <div className="space-y-6">
@@ -132,9 +125,6 @@ export function MeetDetailPage() {
                 {meet.description && <p className="text-brown mt-3 whitespace-pre-wrap">{meet.description}</p>}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className={`text-sm px-3 py-1.5 rounded-full font-medium whitespace-nowrap ${phaseColors[meet.phase]}`}>
-                  {t(`meets.phases.${meet.phase}`)}
-                </span>
                 {isHostOrAdmin && (
                   <button
                     onClick={async () => {
@@ -154,9 +144,46 @@ export function MeetDetailPage() {
               </div>
             </div>
 
-            {/* Phase controls */}
-            {isHostOrAdmin && meet.phase !== 'completed' && (
-              <PhaseControls meet={meet} onUpdate={loadMeet} navigate={navigate} />
+            {/* Phase stepper / cancelled badge */}
+            {meet.phase !== 'cancelled' ? (
+              <PhaseStepper
+                currentPhase={meet.phase}
+                isHostOrAdmin={!!isHostOrAdmin}
+                onPhaseChange={async (phase) => {
+                  await api(`/meets/${meet.id}/phase`, { method: 'POST', body: JSON.stringify({ phase }) });
+                  loadMeet();
+                }}
+                onDelete={async () => {
+                  await api(`/meets/${meet.id}`, { method: 'DELETE' });
+                  navigate('/meets');
+                }}
+                onCancel={async () => {
+                  await api(`/meets/${meet.id}/phase`, { method: 'POST', body: JSON.stringify({ phase: 'cancelled' }) });
+                  loadMeet();
+                }}
+                hasBookAndDate={!!meet.selectedBookId && !!meet.selectedDate}
+                meetId={meet.id}
+              />
+            ) : (
+              <div className="flex items-center gap-2 mt-4">
+                <span className="text-sm px-3 py-1.5 rounded-full font-medium bg-warm-gray text-brown-light">
+                  {t('meets.phases.cancelled')}
+                </span>
+                {isHostOrAdmin && (
+                  <button
+                    onClick={async () => {
+                      if (confirm(t('meetDetail.confirmDelete'))) {
+                        await api(`/meets/${meet.id}`, { method: 'DELETE' });
+                        navigate('/meets');
+                      }
+                    }}
+                    className="p-2 text-brown-lighter hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title={t('meetDetail.deleteMeet')}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             )}
           </>
         )}
@@ -193,137 +220,6 @@ export function MeetDetailPage() {
 }
 
 // --- Sub-components ---
-
-function PhaseControls({ meet, onUpdate, navigate }: { meet: MeetDetailResponse; onUpdate: () => void; navigate: (path: string) => void }) {
-  const { t } = useTranslation();
-  const [changing, setChanging] = useState(false);
-  const [pendingPhase, setPendingPhase] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  const confirmMessages: Record<string, string> = {
-    voting: t('meetDetail.confirmVoting'),
-    reading: t('meetDetail.confirmReading'),
-    completed: t('meetDetail.confirmComplete'),
-    cancelled: t('meetDetail.confirmCancel'),
-  };
-
-  const executePhaseChange = async (phase: string) => {
-    setChanging(true);
-    try {
-      await api(`/meets/${meet.id}/phase`, { method: 'POST', body: JSON.stringify({ phase }) });
-      setPendingPhase(null);
-      onUpdate();
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
-    } finally {
-      setChanging(false);
-    }
-  };
-
-  const deleteMeet = async () => {
-    try {
-      await api(`/meets/${meet.id}`, { method: 'DELETE' });
-      navigate('/meets');
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
-    }
-  };
-
-  const hasBookAndDate = !!meet.selectedBookId && !!meet.selectedDate;
-
-  const transitions: Record<string, { label: string; phase: string; color: string }[]> = {
-    draft: hasBookAndDate
-      ? [{ label: t('meetDetail.startReading'), phase: 'reading', color: 'bg-sage text-white' }]
-      : [
-          { label: t('meetDetail.startVoting'), phase: 'voting', color: 'bg-burgundy text-white' },
-          { label: t('meetDetail.skipToReading'), phase: 'reading', color: 'bg-sage text-white' },
-        ],
-    voting: [
-      { label: t('meetDetail.moveToReading'), phase: 'reading', color: 'bg-sage text-white' },
-    ],
-    reading: [
-      { label: t('meetDetail.complete'), phase: 'completed', color: 'bg-sage text-white' },
-    ],
-  };
-
-  const available = transitions[meet.phase] || [];
-
-  if (meet.phase === 'cancelled') {
-    return (
-      <div className="mt-5 pt-5 border-t border-warm-gray-light">
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => setShowDeleteConfirm(true)} className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-1.5">
-            <Trash2 className="w-4 h-4" /> {t('meetDetail.deleteMeet')}
-          </button>
-        </div>
-        {showDeleteConfirm && (
-          <div className="mt-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-700 mb-3">{t('meetDetail.confirmDelete')}</p>
-            <div className="flex gap-2">
-              <button onClick={deleteMeet} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium">
-                {t('meetDetail.confirm')}
-              </button>
-              <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 text-brown hover:bg-warm-gray-light rounded-lg text-sm">
-                {t('common.cancel')}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-5 pt-5 border-t border-warm-gray-light">
-      <div className="flex flex-wrap gap-2">
-        {available.map(tr => (
-          <button key={tr.phase} onClick={() => setPendingPhase(tr.phase)} disabled={changing}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${tr.color} hover:opacity-90 disabled:opacity-50`}>
-            {tr.label}
-          </button>
-        ))}
-        <button onClick={() => setPendingPhase('cancelled')} disabled={changing}
-          className="px-4 py-2 rounded-lg text-sm font-medium text-brown hover:bg-warm-gray-light">
-          {t('meetDetail.cancelMeet')}
-        </button>
-        <button onClick={() => setShowDeleteConfirm(true)} className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 ml-auto">
-          <Trash2 className="w-4 h-4" />
-        </button>
-      </div>
-      {pendingPhase && (
-        <div className={`mt-3 p-4 rounded-lg border ${pendingPhase === 'cancelled' ? 'bg-red-50 border-red-200' : 'bg-cream border-warm-gray'}`}>
-          <p className={`text-sm mb-3 ${pendingPhase === 'cancelled' ? 'text-red-700' : 'text-brown'}`}>
-            {confirmMessages[pendingPhase]}
-          </p>
-          <div className="flex gap-2">
-            <button onClick={() => executePhaseChange(pendingPhase)} disabled={changing}
-              className={`px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 ${
-                pendingPhase === 'cancelled' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-burgundy hover:bg-burgundy-light text-white'
-              }`}>
-              {t('meetDetail.confirm')}
-            </button>
-            <button onClick={() => setPendingPhase(null)} className="px-4 py-2 text-brown hover:bg-warm-gray-light rounded-lg text-sm">
-              {t('common.cancel')}
-            </button>
-          </div>
-        </div>
-      )}
-      {showDeleteConfirm && (
-        <div className="mt-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-700 mb-3">{t('meetDetail.confirmDelete')}</p>
-          <div className="flex gap-2">
-            <button onClick={deleteMeet} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium">
-              {t('meetDetail.confirm')}
-            </button>
-            <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 text-brown hover:bg-warm-gray-light rounded-lg text-sm">
-              {t('common.cancel')}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 type BookFilterValue = 'unread' | 'read' | 'all';
 
