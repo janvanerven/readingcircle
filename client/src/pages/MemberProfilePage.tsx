@@ -41,10 +41,7 @@ export function MemberProfilePage() {
             <div className="flex items-center gap-2">
               <h1 className="text-2xl sm:text-3xl font-serif font-bold text-brown">{profile.username}</h1>
               {profile.isAdmin && (
-                <span className="text-xs bg-burgundy/10 text-burgundy px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <Shield className="w-3 h-3" />
-                  {t('common.admin')}
-                </span>
+                <span title={t('common.admin')}><Shield className="w-4 h-4 text-burgundy" /></span>
               )}
               {profile.id === user?.id && (
                 <span className="text-xs text-brown-lighter">{t('common.you')}</span>
