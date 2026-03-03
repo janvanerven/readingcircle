@@ -62,7 +62,7 @@ export function Layout() {
               <span className="text-sm text-brown-light">
                 {user?.username}
                 {user?.isAdmin && (
-                  <span className="ml-1 text-xs bg-burgundy/10 text-burgundy px-2 py-0.5 rounded-full">{t('common.admin')}</span>
+                  <span title={t('common.admin')}><Shield className="w-3.5 h-3.5 ml-1 text-burgundy" /></span>
                 )}
               </span>
               <NavLink
@@ -116,7 +116,7 @@ export function Layout() {
                 <div className="px-4 py-2 text-sm text-brown-light">
                   {t('nav.signedInAs')} <strong>{user?.username}</strong>
                   {user?.isAdmin && (
-                    <span className="ml-1 text-xs bg-burgundy/10 text-burgundy px-2 py-0.5 rounded-full">{t('common.admin')}</span>
+                    <span title={t('common.admin')}><Shield className="w-3.5 h-3.5 ml-1 text-burgundy" /></span>
                   )}
                 </div>
                 <NavLink

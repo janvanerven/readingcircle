@@ -352,14 +352,12 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
                   <div className="flex items-center gap-2">
                     <Link to={`/books/${c.bookId}`} className="font-medium text-brown hover:text-burgundy">{c.bookTitle}</Link>
                     {c.alreadySelectedInMeet && (
-                      <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                      <span className="inline-flex items-center gap-1 text-xs text-amber-600">
                         <AlertTriangle className="w-3 h-3" /> {t('meetDetail.alreadySelected')}
                       </span>
                     )}
                     {canSelectAfterReveal && isTopCandidate && (
-                      <span className="inline-flex items-center gap-1 text-xs text-sage-dark bg-sage/20 px-2 py-0.5 rounded-full">
-                        {t('meetDetail.topVoted')}
-                      </span>
+                      <span className="text-xs text-sage-dark font-medium">{t('meetDetail.topVoted')}</span>
                     )}
                   </div>
                   <p className="text-sm text-brown-light">{t('common.by')} {c.bookAuthor}
@@ -465,7 +463,7 @@ function VotingSection({ meet, onUpdate, isHostOrAdmin }: {
         <p className="text-sm font-medium text-brown mb-2">{t('meetDetail.votingStatus')}</p>
         <div className="flex flex-wrap gap-2">
           {meet.voteStatus.map(v => (
-            <span key={v.userId} className={`text-xs px-2.5 py-1 rounded-full ${v.hasVoted ? 'bg-sage/20 text-sage-dark' : 'bg-warm-gray text-brown-light'}`}>
+            <span key={v.userId} className={`text-xs px-2 py-0.5 ${v.hasVoted ? 'text-sage-dark font-medium' : 'text-brown-light'}`}>
               {v.username}: {v.hasVoted ? t('meetDetail.decided') : t('meetDetail.undecided')}
             </span>
           ))}
@@ -768,7 +766,7 @@ function VotingResultsSection({ meet }: { meet: MeetDetailResponse }) {
                 <div className="flex items-center gap-2">
                   <Link to={`/books/${c.bookId}`} className="font-medium text-brown hover:text-burgundy">{c.bookTitle}</Link>
                   {isSelected && (
-                    <span className="inline-flex items-center gap-1 text-xs text-sage-dark bg-sage/20 px-2 py-0.5 rounded-full">
+                    <span className="inline-flex items-center gap-1 text-xs text-sage-dark font-medium">
                       <Check className="w-3 h-3" /> {t('meetDetail.selectedBook')}
                     </span>
                   )}
