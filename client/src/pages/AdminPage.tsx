@@ -120,6 +120,9 @@ export function AdminPage() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [fileError, setFileError] = useState('');
 
+  // Export backup state
+  const [exporting, setExporting] = useState(false);
+
   // Cover fetch state
   const [fetchingCovers, setFetchingCovers] = useState(false);
   const [coverResult, setCoverResult] = useState<{ total: number; updated: number } | null>(null);
@@ -555,6 +558,37 @@ export function AdminPage() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* Export Backup Section */}
+      <div className="bg-white rounded-xl border border-warm-gray p-6 space-y-4">
+        <h2 className="font-serif font-semibold text-brown text-lg">{t('admin.exportBackup')}</h2>
+        <p className="text-sm text-brown-light">{t('admin.exportBackupDesc')}</p>
+        <button
+          onClick={async () => {
+            setExporting(true);
+            try {
+              const data = await api('/export');
+              const json = JSON.stringify(data, null, 2);
+              const blob = new Blob([json], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `readingcircle-backup-${new Date().toISOString().slice(0, 10)}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            } catch (err: unknown) {
+              alert(err instanceof Error ? err.message : 'Export failed');
+            } finally {
+              setExporting(false);
+            }
+          }}
+          disabled={exporting}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-burgundy hover:bg-burgundy-light text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
+        >
+          <Download className="w-4 h-4" />
+          {exporting ? t('admin.exporting') : t('admin.exportButton')}
+        </button>
       </div>
 
       {/* Fetch Book Covers Section */}

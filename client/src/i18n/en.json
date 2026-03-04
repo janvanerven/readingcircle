@@ -284,6 +284,11 @@
   "admin.importMeets_one": "Import {{count}} Meet",
   "admin.importMeets_other": "Import {{count}} Meets",
 
+  "admin.exportBackup": "Export Backup",
+  "admin.exportBackupDesc": "Download a JSON file with all books, meets, and Top 5 data for backup purposes.",
+  "admin.exportButton": "Download Backup",
+  "admin.exporting": "Exporting...",
+
   "admin.fetchCovers": "Fetch Book Covers",
   "admin.fetchCoversDesc": "Fetch cover images from Open Library for all books that don't have one yet.",
   "admin.fetchingCovers": "Fetching covers...",

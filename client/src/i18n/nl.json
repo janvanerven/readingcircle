@@ -284,6 +284,11 @@
   "admin.importMeets_one": "{{count}} bijeenkomst importeren",
   "admin.importMeets_other": "{{count}} bijeenkomsten importeren",
 
+  "admin.exportBackup": "Back-up exporteren",
+  "admin.exportBackupDesc": "Download een JSON-bestand met alle boeken, bijeenkomsten en Top 5-gegevens als back-up.",
+  "admin.exportButton": "Back-up downloaden",
+  "admin.exporting": "Exporteren...",
+
   "admin.fetchCovers": "Boekomslagen ophalen",
   "admin.fetchCoversDesc": "Haal omslagafbeeldingen op van Open Library voor alle boeken die er nog geen hebben.",
   "admin.fetchingCovers": "Omslagen ophalen...",

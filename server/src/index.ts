@@ -11,6 +11,7 @@ import { userRoutes } from './routes/users';
 import { bookRoutes } from './routes/books';
 import { meetRoutes } from './routes/meets';
 import { invitationRoutes } from './routes/invitations';
+import { exportRoutes } from './routes/export';
 import { errorHandler } from './middleware/error';
 import { initializeDatabase } from './db/init';
 
@@ -46,6 +47,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/books', bookRoutes);
 app.use('/api/meets', meetRoutes);
 app.use('/api/invitations', invitationRoutes);
+app.use('/api/export', exportRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
