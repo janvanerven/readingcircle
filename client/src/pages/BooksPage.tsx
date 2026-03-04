@@ -46,9 +46,10 @@ export function BooksPage() {
   }, []);
 
   const filterOptions = useMemo(() => {
-    const types = [...new Set(books.map(b => b.type).filter(Boolean))].sort() as string[];
-    const countries = [...new Set(books.map(b => b.country).filter(Boolean))].sort() as string[];
-    const languages = [...new Set(books.map(b => b.originalLanguage).filter(Boolean))].sort() as string[];
+    const collate = (a: string, b: string) => a.localeCompare(b);
+    const types = ([...new Set(books.map(b => b.type).filter(Boolean))] as string[]).sort(collate);
+    const countries = ([...new Set(books.map(b => b.country).filter(Boolean))] as string[]).sort(collate);
+    const languages = ([...new Set(books.map(b => b.originalLanguage).filter(Boolean))] as string[]).sort(collate);
     return { types, countries, languages };
   }, [books]);
 
