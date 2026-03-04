@@ -13,16 +13,20 @@ export function MemberProfilePage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<MemberProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!id) return;
+    let cancelled = false;
     api<MemberProfileResponse>(`/users/${id}/profile`)
-      .then(setProfile)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .then(data => { if (!cancelled) setProfile(data); })
+      .catch(() => { if (!cancelled) setError(true); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [id]);
 
   if (loading) return <div className="text-brown-light animate-pulse font-serif text-lg">{t('common.loading')}</div>;
+  if (error) return <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{t('common.loadError')}</div>;
   if (!profile) return <div className="text-brown-light">{t('memberProfile.memberNotFound')}</div>;
 
   return (

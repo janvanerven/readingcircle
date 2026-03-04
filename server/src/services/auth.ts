@@ -7,6 +7,9 @@ import { AppError } from '../middleware/error';
 import { sendInvitationEmail } from './email';
 import { isValidUsername, isValidEmail } from '../utils/validation';
 
+// A5: Dummy hash for timing oracle prevention
+const DUMMY_HASH = '$2b$12$LJ3m4ys3Lg7E3cSWiSgAOeFMkYjWoyRXGMXKmBGelIQQnhaqbwKlC';
+
 export async function seedAdmin(): Promise<void> {
   const username = process.env.ADMIN_USERNAME;
   const password = process.env.ADMIN_PASSWORD;
@@ -40,7 +43,10 @@ export async function seedAdmin(): Promise<void> {
 
 export async function login(username: string, password: string) {
   const user = db.select().from(schema.users).where(sql`lower(${schema.users.username}) = lower(${username})`).get();
+
+  // A5: Prevent timing oracle — always run bcrypt even if user not found
   if (!user) {
+    await verifyPassword(password, DUMMY_HASH);
     throw new AppError(401, 'Invalid username or password');
   }
 
@@ -58,17 +64,22 @@ export async function login(username: string, password: string) {
   };
 
   const accessToken = generateAccessToken(authUser);
-  const refreshToken = generateRefreshToken(user.id);
+  const refreshToken = generateRefreshToken(user.id, user.tokenVersion);
 
   return { accessToken, refreshToken, user: authUser };
 }
 
 export async function refreshAccessToken(refreshToken: string) {
   try {
-    const { id } = verifyRefreshToken(refreshToken);
+    const { id, tokenVersion } = verifyRefreshToken(refreshToken);
     const user = db.select().from(schema.users).where(eq(schema.users.id, id)).get();
     if (!user) {
       throw new AppError(401, 'User not found');
+    }
+
+    // A2: Verify tokenVersion matches — reject if user has revoked tokens
+    if (user.tokenVersion !== tokenVersion) {
+      throw new AppError(401, 'Token has been revoked');
     }
 
     const authUser = {
@@ -80,7 +91,7 @@ export async function refreshAccessToken(refreshToken: string) {
     };
 
     const accessToken = generateAccessToken(authUser);
-    const newRefreshToken = generateRefreshToken(user.id);
+    const newRefreshToken = generateRefreshToken(user.id, user.tokenVersion);
 
     return { accessToken, refreshToken: newRefreshToken, user: authUser };
   } catch (err) {
@@ -91,10 +102,11 @@ export async function refreshAccessToken(refreshToken: string) {
 
 export async function setupAccount(userId: string, username: string, password: string, email: string) {
   const trimmedUsername = username.trim();
+  const normalizedEmail = email.toLowerCase().trim();
   if (!isValidUsername(trimmedUsername)) {
     throw new AppError(400, 'Username must be 2-30 characters: letters, numbers, spaces, hyphens, underscores. Must start and end with a letter or number.');
   }
-  if (!isValidEmail(email)) {
+  if (!isValidEmail(normalizedEmail)) {
     throw new AppError(400, 'A valid email address is required');
   }
   const validationError = validatePassword(password);
@@ -108,13 +120,19 @@ export async function setupAccount(userId: string, username: string, password: s
     throw new AppError(400, 'Username already taken');
   }
 
+  // B2: Check email uniqueness
+  const existingEmail = db.select().from(schema.users).where(sql`lower(${schema.users.email}) = ${normalizedEmail}`).get();
+  if (existingEmail && existingEmail.id !== userId) {
+    throw new AppError(400, 'Email already in use');
+  }
+
   const now = new Date().toISOString();
   const passwordHash = await hashPassword(password);
 
   db.update(schema.users)
     .set({
       username: trimmedUsername,
-      email,
+      email: normalizedEmail,
       passwordHash,
       isTemporary: false,
       updatedAt: now,
@@ -134,12 +152,13 @@ export async function setupAccount(userId: string, username: string, password: s
   };
 
   const accessToken = generateAccessToken(authUser);
-  const refreshToken = generateRefreshToken(user.id);
+  const refreshToken = generateRefreshToken(user.id, user.tokenVersion);
 
   return { accessToken, refreshToken, user: authUser };
 }
 
 export async function createInvitation(email: string, invitedById: string) {
+  const normalizedEmail = email.toLowerCase().trim();
   const token = generateMagicLinkToken();
   const now = new Date().toISOString();
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
@@ -149,16 +168,17 @@ export async function createInvitation(email: string, invitedById: string) {
 
   db.insert(schema.invitations).values({
     id: uuid(),
-    email,
+    email: normalizedEmail,
     token,
     invitedBy: invitedById,
     expiresAt,
     createdAt: now,
   }).run();
 
-  await sendInvitationEmail(email, token, inviter.username, inviter.locale);
+  await sendInvitationEmail(normalizedEmail, token, inviter.username, inviter.locale);
 
-  return { email, token, expiresAt };
+  // A4: Don't return token in API response
+  return { email: normalizedEmail, expiresAt };
 }
 
 export async function validateInvitation(token: string) {
@@ -206,10 +226,13 @@ export async function registerWithInvitation(token: string, username: string, pa
     const existingUser = db.select().from(schema.users).where(sql`lower(${schema.users.username}) = ${trimmedUsername.toLowerCase()}`).get();
     if (existingUser) throw new AppError(400, 'Username already taken');
 
+    // A11: Normalize email on write
+    const normalizedEmail = invitation.email.toLowerCase().trim();
+
     db.insert(schema.users).values({
       id: userId,
       username: trimmedUsername,
-      email: invitation.email,
+      email: normalizedEmail,
       passwordHash,
       isAdmin: false,
       isTemporary: false,
@@ -222,10 +245,10 @@ export async function registerWithInvitation(token: string, username: string, pa
       .where(eq(schema.invitations.id, invitation.id))
       .run();
 
-    return invitation.email;
+    return normalizedEmail;
   });
 
-  const email = register();
+  register();
 
   const authUser = {
     id: userId,
@@ -236,7 +259,7 @@ export async function registerWithInvitation(token: string, username: string, pa
   };
 
   const accessToken = generateAccessToken(authUser);
-  const refreshToken = generateRefreshToken(userId);
+  const refreshToken = generateRefreshToken(userId, 0);
 
   return { accessToken, refreshToken, user: authUser };
 }

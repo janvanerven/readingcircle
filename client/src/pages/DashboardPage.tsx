@@ -16,8 +16,10 @@ export function DashboardPage() {
   const [aggregatedRanking, setAggregatedRanking] = useState<AggregatedRankingResponse[]>([]);
   const [latestTop5, setLatestTop5] = useState<LatestTop5Response | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       try {
         const [meetsData, booksData, rankingData, latestData] = await Promise.all([
@@ -26,17 +28,20 @@ export function DashboardPage() {
           api<AggregatedRankingResponse[]>('/meets/top5/aggregate'),
           api<LatestTop5Response | null>('/meets/top5/latest'),
         ]);
-        setMeets(meetsData);
-        setBooks(booksData);
-        setAggregatedRanking(rankingData);
-        setLatestTop5(latestData);
+        if (!cancelled) {
+          setMeets(meetsData);
+          setBooks(booksData);
+          setAggregatedRanking(rankingData);
+          setLatestTop5(latestData);
+        }
       } catch {
-        // Ignore
+        if (!cancelled) setError(true);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     load();
+    return () => { cancelled = true; };
   }, []);
 
   const activeMeets = meets.filter(m => m.phase !== 'completed' && m.phase !== 'cancelled');
@@ -44,6 +49,9 @@ export function DashboardPage() {
 
   if (loading) {
     return <div className="text-brown-light animate-pulse font-serif text-lg">{t('common.loading')}</div>;
+  }
+  if (error) {
+    return <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{t('common.loadError')}</div>;
   }
 
   return (

@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { v4 as uuid } from 'uuid';
 import { authenticate, requireAdmin, requireSetupComplete } from '../middleware/auth';
-import { db, schema } from '../db';
+import { db, schema, sqlite } from '../db';
 import { eq, ne, and, sql } from 'drizzle-orm';
 import { AppError } from '../middleware/error';
 import { isValidStringField, isValidBookType } from '../utils/validation';
@@ -210,7 +210,7 @@ bookRoutes.post('/', (req: Request, res: Response, next: NextFunction) => {
       updatedAt: now,
     }).run();
 
-    // Background cover fetch (non-blocking)
+    // Background cover fetch (non-blocking) — B8: catch errors
     fetchCoverUrl(title, author).then(coverUrl => {
       if (coverUrl) {
         db.update(schema.books)
@@ -218,7 +218,7 @@ bookRoutes.post('/', (req: Request, res: Response, next: NextFunction) => {
           .where(eq(schema.books.id, id))
           .run();
       }
-    });
+    }).catch(err => console.error('Background cover fetch failed:', err));
 
     const book = db
       .select(bookSelectFields)
@@ -332,8 +332,8 @@ bookRoutes.post('/backfill-covers', requireAdmin, async (_req: Request, res: Res
   }
 });
 
-// Fetch/refresh cover for a book
-bookRoutes.post('/:id/fetch-cover', async (req: Request, res: Response, next: NextFunction) => {
+// Fetch/refresh cover for a book — A8: requireAdmin
+bookRoutes.post('/:id/fetch-cover', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const book = db.select().from(schema.books).where(eq(schema.books.id, req.params.id as string)).get();
     if (!book) throw new AppError(404, 'Book not found');
@@ -398,34 +398,38 @@ bookRoutes.post('/import', requireAdmin, (req: Request, res: Response, next: Nex
     let imported = 0;
     const errors: { row: number; error: string }[] = [];
 
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      try {
-        if (!row.title?.trim() || !row.author?.trim()) {
-          errors.push({ row: i + 1, error: 'Title and author are required' });
-          continue;
+    // B3: Wrap book import in transaction
+    const importBooks = sqlite.transaction(() => {
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        try {
+          if (!row.title?.trim() || !row.author?.trim()) {
+            errors.push({ row: i + 1, error: 'Title and author are required' });
+            continue;
+          }
+          validateBookFields(row);
+
+          db.insert(schema.books).values({
+            id: uuid(),
+            title: row.title.trim(),
+            author: row.author.trim(),
+            year: row.year?.trim() || null,
+            country: row.country?.trim() || null,
+            originalLanguage: row.originalLanguage?.trim() || null,
+            type: row.type?.trim() || null,
+            introduction: row.introduction?.trim() || null,
+            addedBy: req.user!.id,
+            createdAt: now,
+            updatedAt: now,
+          }).run();
+          imported++;
+        } catch (err) {
+          errors.push({ row: i + 1, error: err instanceof AppError ? err.message : 'Unknown error' });
         }
-        validateBookFields(row);
-
-        db.insert(schema.books).values({
-          id: uuid(),
-          title: row.title.trim(),
-          author: row.author.trim(),
-          year: row.year?.trim() || null,
-          country: row.country?.trim() || null,
-          originalLanguage: row.originalLanguage?.trim() || null,
-          type: row.type?.trim() || null,
-          introduction: row.introduction?.trim() || null,
-          addedBy: req.user!.id,
-          createdAt: now,
-          updatedAt: now,
-        }).run();
-        imported++;
-      } catch (err) {
-        errors.push({ row: i + 1, error: err instanceof AppError ? err.message : 'Unknown error' });
       }
-    }
+    });
 
+    importBooks();
     res.json({ imported, errors });
   } catch (err) {
     next(err);

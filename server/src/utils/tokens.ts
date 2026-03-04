@@ -14,16 +14,20 @@ export function generateAccessToken(user: AuthUser): string {
   );
 }
 
-export function generateRefreshToken(userId: string): string {
+export function generateRefreshToken(userId: string, tokenVersion: number): string {
   return jwt.sign(
-    { id: userId, type: 'refresh' },
+    { id: userId, type: 'refresh', tokenVersion },
     JWT_REFRESH_SECRET,
     { algorithm: JWT_ALGORITHM, expiresIn: REFRESH_TOKEN_EXPIRY },
   );
 }
 
-export function verifyRefreshToken(token: string): { id: string } {
-  return jwt.verify(token, JWT_REFRESH_SECRET, { algorithms: [JWT_ALGORITHM] }) as { id: string };
+export function verifyRefreshToken(token: string): { id: string; tokenVersion: number } {
+  const payload = jwt.verify(token, JWT_REFRESH_SECRET, { algorithms: [JWT_ALGORITHM] }) as { id: string; type?: string; tokenVersion?: number };
+  if (payload.type !== 'refresh') {
+    throw new Error('Invalid token type');
+  }
+  return { id: payload.id, tokenVersion: payload.tokenVersion ?? 0 };
 }
 
 export function generateMagicLinkToken(): string {

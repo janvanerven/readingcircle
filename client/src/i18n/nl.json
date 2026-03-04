@@ -9,6 +9,9 @@
   "common.admin": "Beheerder",
   "common.post": "Plaatsen",
   "common.send": "Versturen",
+  "common.loadError": "Laden mislukt. Probeer het opnieuw.",
+  "common.close": "Sluiten",
+  "common.menu": "Menu",
 
   "nav.home": "Home",
   "nav.readingList": "Boekenlijst",
@@ -206,6 +209,8 @@
   "meetDetail.removeCandidate": "Kandidaat verwijderen",
   "meetDetail.selectThisDate": "Deze datum selecteren",
   "meetDetail.removeDateOption": "Datumoptie verwijderen",
+  "meetDetail.decreasePoints": "Punten verlagen",
+  "meetDetail.increasePoints": "Punten verhogen",
   "meetDetail.moveUp": "Omhoog",
   "meetDetail.moveDown": "Omlaag",
   "meetDetail.remove": "Verwijderen",

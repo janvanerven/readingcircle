@@ -19,20 +19,23 @@ export function MeetsPage() {
   const [description, setDescription] = useState('');
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    loadMeets();
-  }, []);
+  const [loadError, setLoadError] = useState(false);
 
-  async function loadMeets() {
-    try {
-      const data = await api<MeetWithLabel[]>('/meets');
-      setMeets(data);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const data = await api<MeetWithLabel[]>('/meets');
+        if (!cancelled) setMeets(data);
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-  }
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +57,9 @@ export function MeetsPage() {
 
   if (loading) {
     return <div className="text-brown-light animate-pulse font-serif text-lg">{t('meets.loadingMeets')}</div>;
+  }
+  if (loadError) {
+    return <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{t('common.loadError')}</div>;
   }
 
   const groupedMeets = phaseOrder
@@ -88,8 +94,9 @@ export function MeetsPage() {
         <form onSubmit={handleCreate} className="bg-white rounded-xl border border-warm-gray p-6 space-y-4">
           <h3 className="font-serif font-semibold text-brown text-lg">{t('meets.createNewMeet')}</h3>
           <div>
-            <label className="block text-sm font-medium text-brown mb-1">{t('meets.locationLabel')}</label>
+            <label htmlFor="meet-location" className="block text-sm font-medium text-brown mb-1">{t('meets.locationLabel')}</label>
             <input
+              id="meet-location"
               type="text"
               value={location}
               onChange={e => setLocation(e.target.value)}
@@ -98,8 +105,9 @@ export function MeetsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-brown mb-1">{t('meets.descriptionLabel')}</label>
+            <label htmlFor="meet-description" className="block text-sm font-medium text-brown mb-1">{t('meets.descriptionLabel')}</label>
             <textarea
+              id="meet-description"
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={2}

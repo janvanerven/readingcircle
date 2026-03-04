@@ -162,6 +162,7 @@ export function PhaseStepper({
             onClick={() => setPendingPhase('cancelled')}
             className="p-2 text-brown-lighter hover:text-burgundy hover:bg-burgundy/5 rounded-lg transition-colors"
             title={t('meetDetail.cancelMeet')}
+            aria-label={t('meetDetail.cancelMeet')}
           >
             <Ban className="w-4 h-4" />
           </button>
@@ -170,6 +171,7 @@ export function PhaseStepper({
             onClick={() => setShowDeleteConfirm(true)}
             className="p-2 text-brown-lighter hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             title={t('meetDetail.deleteMeet')}
+            aria-label={t('meetDetail.deleteMeet')}
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -184,6 +186,7 @@ export function PhaseStepper({
             onClick={() => setShowDeleteConfirm(true)}
             className="p-2 text-brown-lighter hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             title={t('meetDetail.deleteMeet')}
+            aria-label={t('meetDetail.deleteMeet')}
           >
             <Trash2 className="w-4 h-4" />
           </button>

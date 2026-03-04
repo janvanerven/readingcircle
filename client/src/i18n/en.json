@@ -9,6 +9,9 @@
   "common.admin": "Admin",
   "common.post": "Post",
   "common.send": "Send",
+  "common.loadError": "Failed to load data. Please try again.",
+  "common.close": "Close",
+  "common.menu": "Menu",
 
   "nav.home": "Home",
   "nav.readingList": "Reading List",
@@ -206,6 +209,8 @@
   "meetDetail.removeCandidate": "Remove candidate",
   "meetDetail.selectThisDate": "Select this date",
   "meetDetail.removeDateOption": "Remove date option",
+  "meetDetail.decreasePoints": "Decrease points",
+  "meetDetail.increasePoints": "Increase points",
   "meetDetail.moveUp": "Move up",
   "meetDetail.moveDown": "Move down",
   "meetDetail.remove": "Remove",

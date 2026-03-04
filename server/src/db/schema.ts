@@ -7,6 +7,7 @@ export const users = sqliteTable('users', {
   passwordHash: text('password_hash').notNull(),
   isAdmin: integer('is_admin', { mode: 'boolean' }).notNull().default(false),
   isTemporary: integer('is_temporary', { mode: 'boolean' }).notNull().default(true),
+  tokenVersion: integer('token_version').notNull().default(0),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
   locale: text('locale').notNull().default('en'),

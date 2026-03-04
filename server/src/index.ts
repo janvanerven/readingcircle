@@ -14,15 +14,25 @@ import { invitationRoutes } from './routes/invitations';
 import { exportRoutes } from './routes/export';
 import { errorHandler } from './middleware/error';
 import { initializeDatabase } from './db/init';
+import { sqlite } from './db';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // Trust first proxy (nginx)
-app.set('trust proxy', 1);
+app.set('trust proxy', 'loopback');
 
 // Security headers
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", 'https://covers.openlibrary.org', 'data:'],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+    },
+  },
+}));
 
 // Global rate limit
 app.use(rateLimit({
@@ -63,11 +73,20 @@ app.use(errorHandler);
 
 // Initialize
 async function start() {
-  initializeDatabase();
+  initializeDatabase(sqlite);
   await seedAdmin();
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Reading Circle server running on port ${PORT}`);
   });
+
+  const shutdown = () => {
+    server.close(() => {
+      sqlite.close();
+      process.exit(0);
+    });
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
 start().catch(console.error);

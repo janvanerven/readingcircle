@@ -32,8 +32,22 @@ export function BookDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  const [loadError, setLoadError] = useState(false);
+
   useEffect(() => {
-    loadBook();
+    let cancelled = false;
+    async function load() {
+      try {
+        const data = await api<BookDetailResponse>(`/books/${id}`);
+        if (!cancelled) setBook(data);
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
   }, [id]);
 
   async function loadBook() {
@@ -125,6 +139,9 @@ export function BookDetailPage() {
   if (loading) {
     return <div className="text-brown-light animate-pulse font-serif text-lg">{t('common.loading')}</div>;
   }
+  if (loadError) {
+    return <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{t('common.loadError')}</div>;
+  }
 
   if (!book) {
     return (
@@ -147,7 +164,7 @@ export function BookDetailPage() {
           <form onSubmit={handleEdit} className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-serif font-semibold text-brown text-lg">{t('bookDetail.editBook')}</h2>
-              <button type="button" onClick={() => setEditing(false)} className="text-brown-lighter hover:text-brown">
+              <button type="button" onClick={() => setEditing(false)} className="text-brown-lighter hover:text-brown" aria-label={t('common.close')}>
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -295,6 +312,7 @@ export function BookDetailPage() {
                     onClick={startEditing}
                     className="p-2 text-brown-lighter hover:text-burgundy hover:bg-burgundy/5 rounded-lg transition-colors"
                     title={t('bookDetail.editBook')}
+                    aria-label={t('bookDetail.editBook')}
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
@@ -303,6 +321,7 @@ export function BookDetailPage() {
                       onClick={() => setShowDeleteConfirm(true)}
                       className="p-2 text-brown-lighter hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title={t('common.delete')}
+                      aria-label={t('common.delete')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -311,6 +330,7 @@ export function BookDetailPage() {
                       disabled
                       className="p-2 text-brown-lighter/40 rounded-lg cursor-not-allowed"
                       title={t('bookDetail.cannotDelete')}
+                      aria-label={t('bookDetail.cannotDelete')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -425,7 +445,9 @@ export function BookDetailPage() {
         )}
 
         <form onSubmit={handleComment} className="flex gap-3">
+          <label htmlFor="book-comment" className="sr-only">{t('bookDetail.addComment')}</label>
           <input
+            id="book-comment"
             type="text"
             value={comment}
             onChange={e => setComment(e.target.value)}

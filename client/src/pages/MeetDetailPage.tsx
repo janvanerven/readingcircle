@@ -19,6 +19,7 @@ export function MeetDetailPage() {
   const [books, setBooks] = useState<BookResponse[]>([]);
   const [aggregatedRanking, setAggregatedRanking] = useState<AggregatedRankingResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ hostId: '', location: '', description: '' });
   const [editSaving, setEditSaving] = useState(false);
@@ -38,15 +39,39 @@ export function MeetDetailPage() {
         setAggregatedRanking(ranking);
       }
     } catch {
-      // ignore
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
   }, [id]);
 
-  useEffect(() => { loadMeet(); }, [loadMeet]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [meetData, booksData] = await Promise.all([
+          api<MeetDetailResponse>(`/meets/${id}`),
+          api<BookResponse[]>('/books'),
+        ]);
+        if (cancelled) return;
+        setMeet(meetData);
+        setBooks(booksData);
+
+        if (meetData.phase === 'completed') {
+          const ranking = await api<AggregatedRankingResponse[]>('/meets/top5/aggregate');
+          if (!cancelled) setAggregatedRanking(ranking);
+        }
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
 
   if (loading) return <div className="text-brown-light animate-pulse font-serif text-lg">{t('common.loading')}</div>;
+  if (loadError) return <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{t('common.loadError')}</div>;
   if (!meet) return <div className="text-center py-12"><p className="text-brown-light">{t('meetDetail.meetNotFound')}</p></div>;
 
   const isHostOrAdmin = meet.hostId === user?.id || user?.isAdmin;
@@ -79,7 +104,7 @@ export function MeetDetailPage() {
           }} className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-serif font-semibold text-brown text-lg">{t('meetDetail.editMeet')}</h2>
-              <button type="button" onClick={() => setEditing(false)} className="text-brown-lighter hover:text-brown">
+              <button type="button" onClick={() => setEditing(false)} className="text-brown-lighter hover:text-brown" aria-label={t('common.close')}>
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -138,6 +163,7 @@ export function MeetDetailPage() {
                     }}
                     className="p-2 text-brown-lighter hover:text-burgundy hover:bg-burgundy/5 rounded-lg transition-colors"
                     title={t('meetDetail.editMeet')}
+                    aria-label={t('meetDetail.editMeet')}
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
@@ -180,6 +206,7 @@ export function MeetDetailPage() {
                     }}
                     className="p-2 text-brown-lighter hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title={t('meetDetail.deleteMeet')}
+                    aria-label={t('meetDetail.deleteMeet')}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -486,14 +513,16 @@ function VotingSection({ meet, onUpdate, isHostOrAdmin }: {
             <span className="text-sm text-brown flex-1 min-w-0 truncate">{c.bookTitle}</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setPoints({ ...points, [c.id]: Math.max(0, (points[c.id] || 0) - 1) })}
-                className="w-8 h-8 rounded-lg border border-warm-gray text-brown hover:bg-warm-gray-light flex items-center justify-center">
+                className="w-8 h-8 rounded-lg border border-warm-gray text-brown hover:bg-warm-gray-light flex items-center justify-center"
+                aria-label={t('meetDetail.decreasePoints')}>
                 <Minus className="w-3 h-3" />
               </button>
               <span className="w-8 text-center font-medium text-brown">{points[c.id] || 0}</span>
               <button onClick={() => {
                 if (remaining > 0) setPoints({ ...points, [c.id]: (points[c.id] || 0) + 1 });
               }}
-                className="w-8 h-8 rounded-lg border border-warm-gray text-brown hover:bg-warm-gray-light flex items-center justify-center">
+                className="w-8 h-8 rounded-lg border border-warm-gray text-brown hover:bg-warm-gray-light flex items-center justify-center"
+                aria-label={t('meetDetail.increasePoints')}>
                 +
               </button>
             </div>
@@ -823,7 +852,7 @@ function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: (
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    // Load eligible books (selected in completed/reading meets)
+    let cancelled = false;
     async function load() {
       try {
         const allMeets = await api<{ id: string; phase: string; selectedBookId: string | null }[]>('/meets');
@@ -832,10 +861,11 @@ function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: (
           .map(m => m.selectedBookId!);
 
         const allBooks = await api<BookResponse[]>('/books');
-        setEligibleBooks(allBooks.filter(b => validBookIds.includes(b.id)));
+        if (!cancelled) setEligibleBooks(allBooks.filter(b => validBookIds.includes(b.id)));
       } catch { /* ignore */ }
     }
     load();
+    return () => { cancelled = true; };
   }, []);
 
   const myEntries = meet.top5Entries.filter(e => e.userId === user?.id);

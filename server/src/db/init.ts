@@ -1,18 +1,6 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
+import type { Database as DatabaseType } from 'better-sqlite3';
 
-export function initializeDatabase() {
-  const dbPath = process.env.DATABASE_PATH || './data/readingcircle.db';
-  const dbDir = path.dirname(dbPath);
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
-  }
-
-  const sqlite = new Database(dbPath);
-  sqlite.pragma('journal_mode = WAL');
-  sqlite.pragma('foreign_keys = ON');
-
+export function initializeDatabase(sqlite: DatabaseType) {
   // Create tables if they don't exist
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -22,6 +10,7 @@ export function initializeDatabase() {
       password_hash TEXT NOT NULL,
       is_admin INTEGER NOT NULL DEFAULT 0,
       is_temporary INTEGER NOT NULL DEFAULT 1,
+      token_version INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -130,7 +119,7 @@ export function initializeDatabase() {
     );
   `);
 
-  // Migrations for new book columns (safe to re-run — catch if column already exists)
+  // Migrations for new columns (safe to re-run — catch if column already exists)
   const addColumn = (table: string, column: string, type: string) => {
     try { sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`); } catch { /* column already exists */ }
   };
@@ -140,6 +129,20 @@ export function initializeDatabase() {
   addColumn('books', 'type', 'TEXT');
   addColumn('users', 'locale', "TEXT NOT NULL DEFAULT 'en'");
   addColumn('books', 'cover_url', 'TEXT');
+  addColumn('users', 'token_version', 'INTEGER NOT NULL DEFAULT 0');
 
-  sqlite.close();
+  // B2: Unique constraint on email (excluding empty email for admin seed)
+  sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users(email) WHERE email != ''`);
+
+  // B7: Performance indexes
+  sqlite.exec(`
+    CREATE INDEX IF NOT EXISTS idx_meet_candidates_meet_id ON meet_candidates(meet_id);
+    CREATE INDEX IF NOT EXISTS idx_mcv_meet_id ON meet_candidate_votes(meet_id);
+    CREATE INDEX IF NOT EXISTS idx_mcv_candidate_id ON meet_candidate_votes(candidate_id);
+    CREATE INDEX IF NOT EXISTS idx_mdo_meet_id ON meet_date_options(meet_id);
+    CREATE INDEX IF NOT EXISTS idx_mdv_date_option_id ON meet_date_votes(date_option_id);
+    CREATE INDEX IF NOT EXISTS idx_mt5_meet_id ON meet_top5(meet_id);
+    CREATE INDEX IF NOT EXISTS idx_bc_book_id ON book_comments(book_id);
+    CREATE INDEX IF NOT EXISTS idx_ub_book_id ON user_books(book_id);
+  `);
 }

@@ -127,8 +127,9 @@ export function SettingsPage() {
 
         <form onSubmit={handleUsernameChange} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-brown mb-1">{t('settings.newUsername')}</label>
+            <label htmlFor="settings-new-username" className="block text-sm font-medium text-brown mb-1">{t('settings.newUsername')}</label>
             <input
+              id="settings-new-username"
               type="text"
               value={newUsername}
               onChange={e => setNewUsername(e.target.value)}
@@ -139,8 +140,9 @@ export function SettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-brown mb-1">{t('settings.currentPassword')}</label>
+            <label htmlFor="settings-username-password" className="block text-sm font-medium text-brown mb-1">{t('settings.currentPassword')}</label>
             <input
+              id="settings-username-password"
               type="password"
               value={usernamePassword}
               onChange={e => setUsernamePassword(e.target.value)}
@@ -171,8 +173,9 @@ export function SettingsPage() {
 
         <form onSubmit={handlePasswordChange} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-brown mb-1">{t('settings.currentPassword')}</label>
+            <label htmlFor="settings-current-password" className="block text-sm font-medium text-brown mb-1">{t('settings.currentPassword')}</label>
             <input
+              id="settings-current-password"
               type="password"
               value={currentPassword}
               onChange={e => setCurrentPassword(e.target.value)}
@@ -181,8 +184,9 @@ export function SettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-brown mb-1">{t('settings.newPassword')}</label>
+            <label htmlFor="settings-new-password" className="block text-sm font-medium text-brown mb-1">{t('settings.newPassword')}</label>
             <input
+              id="settings-new-password"
               type="password"
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
@@ -192,8 +196,9 @@ export function SettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-brown mb-1">{t('settings.confirmNewPassword')}</label>
+            <label htmlFor="settings-confirm-password" className="block text-sm font-medium text-brown mb-1">{t('settings.confirmNewPassword')}</label>
             <input
+              id="settings-confirm-password"
               type="password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
@@ -219,8 +224,9 @@ export function SettingsPage() {
           {t('settings.language')}
         </h2>
         <div>
-          <label className="block text-sm font-medium text-brown mb-1">{t('settings.languageLabel')}</label>
+          <label htmlFor="settings-language" className="block text-sm font-medium text-brown mb-1">{t('settings.languageLabel')}</label>
           <select
+            id="settings-language"
             value={i18n.language}
             onChange={e => handleLanguageChange(e.target.value)}
             disabled={languageSaving}

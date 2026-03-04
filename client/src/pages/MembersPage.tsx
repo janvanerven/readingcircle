@@ -11,15 +11,19 @@ export function MembersPage() {
   const { user } = useAuth();
   const [members, setMembers] = useState<MemberSummaryResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     api<MemberSummaryResponse[]>('/users/profiles')
-      .then(setMembers)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .then(data => { if (!cancelled) setMembers(data); })
+      .catch(() => { if (!cancelled) setError(true); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
   if (loading) return <div className="text-brown-light animate-pulse font-serif text-lg">{t('common.loading')}</div>;
+  if (error) return <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{t('common.loadError')}</div>;
 
   return (
     <div className="space-y-6">

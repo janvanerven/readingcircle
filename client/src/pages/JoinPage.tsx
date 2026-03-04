@@ -21,17 +21,19 @@ export function JoinPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     async function validate() {
       try {
         const data = await api<{ email: string; invitedByUsername: string }>(`/auth/invitation/${token}`);
-        setInvitation(data);
+        if (!cancelled) setInvitation(data);
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Invalid invitation');
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Invalid invitation');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     validate();
+    return () => { cancelled = true; };
   }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {

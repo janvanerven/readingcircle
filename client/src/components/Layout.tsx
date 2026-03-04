@@ -69,6 +69,7 @@ export function Layout() {
                 to="/settings"
                 className="p-2 text-brown-light hover:text-burgundy transition-colors rounded-lg hover:bg-warm-gray-light"
                 title={t('nav.settings')}
+                aria-label={t('nav.settings')}
               >
                 <Settings className="w-4 h-4" />
               </NavLink>
@@ -76,6 +77,7 @@ export function Layout() {
                 onClick={handleLogout}
                 className="p-2 text-brown-light hover:text-burgundy transition-colors rounded-lg hover:bg-warm-gray-light"
                 title={t('nav.logout')}
+                aria-label={t('nav.logout')}
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -85,6 +87,7 @@ export function Layout() {
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="md:hidden p-2 text-brown hover:bg-warm-gray-light rounded-lg"
+              aria-label={mobileMenuOpen ? t('common.close') : t('common.menu')}
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>

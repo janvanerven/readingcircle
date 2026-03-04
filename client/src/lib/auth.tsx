@@ -30,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     setOnAuthError(clearAuth);
 
     // Try to restore session via refresh token
@@ -39,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           method: 'POST',
           credentials: 'include',
         });
-        if (res.ok) {
+        if (res.ok && !cancelled) {
           const data = await res.json();
           setAccessToken(data.accessToken);
           setUser(data.user);
@@ -51,10 +52,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch {
         // No session
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     init();
+    return () => { cancelled = true; };
   }, [clearAuth]);
 
   const login = async (username: string, password: string) => {

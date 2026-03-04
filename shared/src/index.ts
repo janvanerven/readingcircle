@@ -248,11 +248,12 @@ export const USERNAME_REQUIREMENTS = {
 
 export const PASSWORD_REQUIREMENTS = {
   minLength: 8,
+  maxLength: 72,
   requireUppercase: true,
   requireLowercase: true,
   requireNumber: true,
   requireSpecial: true,
-  description: 'Password must be at least 8 characters and include uppercase, lowercase, number, and special character (!@#$%^&*)',
+  description: 'Password must be 8-72 characters and include uppercase, lowercase, number, and special character (!@#$%^&*)',
 };
 
 export const VOTING_POINTS_TOTAL = 15;

@@ -1,11 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { v4 as uuid } from 'uuid';
 import { authenticate, requireSetupComplete, requireAdmin } from '../middleware/auth';
-import { db, schema } from '../db';
-import { eq, and, sql } from 'drizzle-orm';
+import { db, schema, sqlite } from '../db';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 import { AppError } from '../middleware/error';
 import { VOTING_POINTS_TOTAL } from '@readingcircle/shared';
-import { isValidStringField, isValidAvailability } from '../utils/validation';
+import { isValidAvailability } from '../utils/validation';
 import { sendVotingOpenedEmail, sendBookSelectedEmail } from '../services/email';
 
 export const meetRoutes = Router();
@@ -232,14 +232,14 @@ meetRoutes.get('/:id', (req: Request, res: Response, next: NextFunction) => {
       pointsByCandidateId.set(v.candidateId, (pointsByCandidateId.get(v.candidateId) || 0) + v.points);
     }
 
-    // Batch: readByUsers for all candidate books
+    // Batch: readByUsers for all candidate books (B4: use SQL inArray)
     const candidateBookIds = [...new Set(candidates.map(c => c.bookId))];
     const allReadByUsers = candidateBookIds.length > 0
       ? db.select({ bookId: schema.userBooks.bookId, userId: schema.userBooks.userId, username: schema.users.username })
           .from(schema.userBooks)
           .leftJoin(schema.users, eq(schema.userBooks.userId, schema.users.id))
+          .where(inArray(schema.userBooks.bookId, candidateBookIds))
           .all()
-          .filter(r => candidateBookIds.includes(r.bookId))
       : [];
     const readByBookId = new Map<string, { id: string; username: string | null }[]>();
     for (const r of allReadByUsers) {
@@ -282,6 +282,7 @@ meetRoutes.get('/:id', (req: Request, res: Response, next: NextFunction) => {
       .where(eq(schema.meetDateOptions.meetId, req.params.id as string))
       .all();
 
+    // B4: Use SQL inArray instead of JS filtering
     const dateOptionIds = dateOptions.map(o => o.id);
     const allDateVotes = dateOptionIds.length > 0
       ? db.select({
@@ -292,8 +293,8 @@ meetRoutes.get('/:id', (req: Request, res: Response, next: NextFunction) => {
         })
         .from(schema.meetDateVotes)
         .leftJoin(schema.users, eq(schema.meetDateVotes.userId, schema.users.id))
+        .where(inArray(schema.meetDateVotes.dateOptionId, dateOptionIds))
         .all()
-        .filter(v => dateOptionIds.includes(v.dateOptionId))
       : [];
     const dateVotesByOptionId = new Map<string, typeof allDateVotes>();
     for (const v of allDateVotes) {
@@ -402,6 +403,13 @@ meetRoutes.put('/:id', (req: Request, res: Response, next: NextFunction) => {
     }
 
     const { hostId, location, description, selectedBookId, selectedDate } = req.body;
+    // B6: Input validation
+    if (location !== undefined && typeof location === 'string' && location.length > 500) {
+      throw new AppError(400, 'Location must be under 500 characters');
+    }
+    if (description !== undefined && typeof description === 'string' && description.length > 2000) {
+      throw new AppError(400, 'Description must be under 2000 characters');
+    }
     const now = new Date().toISOString();
 
     if (hostId !== undefined) {
@@ -521,6 +529,11 @@ meetRoutes.delete('/:id', (req: Request, res: Response, next: NextFunction) => {
       throw new AppError(403, 'Only the host or an admin can delete this meet');
     }
 
+    // A9: Prevent deletion of completed meets
+    if (meet.phase === 'completed') {
+      throw new AppError(400, 'Completed meets cannot be deleted');
+    }
+
     db.delete(schema.meets).where(eq(schema.meets.id, req.params.id as string)).run();
     res.json({ ok: true });
   } catch (err) {
@@ -538,58 +551,62 @@ meetRoutes.post('/import', requireAdmin, (req: Request, res: Response, next: Nex
     const imported: string[] = [];
     const errors: { row: number; error: string }[] = [];
 
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i]!;
-      const rowNum = i + 1;
+    // B3: Wrap import in transaction
+    const importMeets = sqlite.transaction(() => {
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i]!;
+        const rowNum = i + 1;
 
-      const seq = Number(row.sequence);
-      if (!Number.isInteger(seq) || seq < 1) {
-        errors.push({ row: rowNum, error: `Invalid sequence: ${row.sequence}` });
-        continue;
+        const seq = Number(row.sequence);
+        if (!Number.isInteger(seq) || seq < 1) {
+          errors.push({ row: rowNum, error: `Invalid sequence: ${row.sequence}` });
+          continue;
+        }
+
+        const hostUser = db
+          .select({ id: schema.users.id })
+          .from(schema.users)
+          .where(sql`lower(${schema.users.username}) = lower(${row.host})`)
+          .get();
+        if (!hostUser) {
+          errors.push({ row: rowNum, error: `Host not found: ${row.host}` });
+          continue;
+        }
+
+        const book = db
+          .select({ id: schema.books.id })
+          .from(schema.books)
+          .where(sql`lower(${schema.books.title}) = lower(${row.book})`)
+          .get();
+        if (!book) {
+          errors.push({ row: rowNum, error: `Book not found: ${row.book}` });
+          continue;
+        }
+
+        const createdAt = new Date(Date.UTC(2000, 0, 1) + (seq - 1) * 60000).toISOString();
+        const meetId = uuid();
+
+        db.insert(schema.meets).values({
+          id: meetId,
+          hostId: hostUser.id,
+          phase: 'completed',
+          selectedBookId: book.id,
+          createdAt,
+          updatedAt: createdAt,
+        }).run();
+
+        db.insert(schema.meetCandidates).values({
+          id: uuid(),
+          meetId,
+          bookId: book.id,
+          addedBy: req.user!.id,
+        }).run();
+
+        imported.push(meetId);
       }
+    });
 
-      const hostUser = db
-        .select({ id: schema.users.id })
-        .from(schema.users)
-        .where(sql`lower(${schema.users.username}) = lower(${row.host})`)
-        .get();
-      if (!hostUser) {
-        errors.push({ row: rowNum, error: `Host not found: ${row.host}` });
-        continue;
-      }
-
-      const book = db
-        .select({ id: schema.books.id })
-        .from(schema.books)
-        .where(sql`lower(${schema.books.title}) = lower(${row.book})`)
-        .get();
-      if (!book) {
-        errors.push({ row: rowNum, error: `Book not found: ${row.book}` });
-        continue;
-      }
-
-      const createdAt = new Date(Date.UTC(2000, 0, 1) + (seq - 1) * 60000).toISOString();
-      const meetId = uuid();
-
-      db.insert(schema.meets).values({
-        id: meetId,
-        hostId: hostUser.id,
-        phase: 'completed',
-        selectedBookId: book.id,
-        createdAt,
-        updatedAt: createdAt,
-      }).run();
-
-      db.insert(schema.meetCandidates).values({
-        id: uuid(),
-        meetId,
-        bookId: book.id,
-        addedBy: req.user!.id,
-      }).run();
-
-      imported.push(meetId);
-    }
-
+    importMeets();
     res.json({ imported: imported.length, errors });
   } catch (err) {
     next(err);
@@ -610,9 +627,22 @@ meetRoutes.post('/:id/candidates', (req: Request, res: Response, next: NextFunct
 
     const { bookId, motivation } = req.body;
     if (!bookId) throw new AppError(400, 'bookId is required');
+    // B6: Validate motivation length
+    if (motivation && typeof motivation === 'string' && motivation.length > 2000) {
+      throw new AppError(400, 'Motivation must be under 2000 characters');
+    }
 
     const book = db.select().from(schema.books).where(eq(schema.books.id, bookId)).get();
     if (!book) throw new AppError(404, 'Book not found');
+
+    // B6: Candidate limit
+    const existingCandidates = db.select({ id: schema.meetCandidates.id })
+      .from(schema.meetCandidates)
+      .where(eq(schema.meetCandidates.meetId, req.params.id as string))
+      .all();
+    if (existingCandidates.length >= 20) {
+      throw new AppError(400, 'Maximum 20 candidates per meet');
+    }
 
     const id = uuid();
     db.insert(schema.meetCandidates).values({
@@ -663,7 +693,11 @@ meetRoutes.delete('/:id/candidates/:candidateId', (req: Request, res: Response, 
       throw new AppError(403, 'Only the host or an admin can remove candidates');
     }
 
-    db.delete(schema.meetCandidates).where(eq(schema.meetCandidates.id, req.params.candidateId as string)).run();
+    // A3: Scope delete to this meet to prevent IDOR
+    db.delete(schema.meetCandidates).where(and(
+      eq(schema.meetCandidates.id, req.params.candidateId as string),
+      eq(schema.meetCandidates.meetId, req.params.id as string),
+    )).run();
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -700,14 +734,22 @@ meetRoutes.post('/:id/candidates/select', (req: Request, res: Response, next: Ne
         throw new AppError(400, 'Scores must be revealed before selecting a book');
       }
 
-      // Calculate points for each candidate
-      const candidatePoints = candidates.map(c => {
-        const votes = db.select({ points: schema.meetCandidateVotes.points })
-          .from(schema.meetCandidateVotes)
-          .where(eq(schema.meetCandidateVotes.candidateId, c.id))
-          .all();
-        return { bookId: c.bookId, totalPoints: votes.reduce((sum, v) => sum + v.points, 0) };
-      });
+      // B5: Batch query instead of N+1 per-candidate
+      const allVotesForMeet = db.select({
+        candidateId: schema.meetCandidateVotes.candidateId,
+        points: schema.meetCandidateVotes.points,
+      })
+        .from(schema.meetCandidateVotes)
+        .where(eq(schema.meetCandidateVotes.meetId, req.params.id as string))
+        .all();
+      const pointsByCandidate = new Map<string, number>();
+      for (const v of allVotesForMeet) {
+        pointsByCandidate.set(v.candidateId, (pointsByCandidate.get(v.candidateId) || 0) + v.points);
+      }
+      const candidatePoints = candidates.map(c => ({
+        bookId: c.bookId,
+        totalPoints: pointsByCandidate.get(c.id) || 0,
+      }));
 
       const maxPoints = Math.max(...candidatePoints.map(c => c.totalPoints));
       const topCandidates = candidatePoints.filter(c => c.totalPoints === maxPoints);
@@ -771,35 +813,41 @@ meetRoutes.post('/:id/votes', (req: Request, res: Response, next: NextFunction) 
       throw new AppError(400, `You must distribute exactly ${VOTING_POINTS_TOTAL} points (you distributed ${totalPoints})`);
     }
 
-    // Verify all candidates belong to this meet
+    // B5: Batch validate all candidates belong to this meet
+    const meetCandidates = db.select({ id: schema.meetCandidates.id })
+      .from(schema.meetCandidates)
+      .where(eq(schema.meetCandidates.meetId, req.params.id as string))
+      .all();
+    const validCandidateIds = new Set(meetCandidates.map(c => c.id));
     for (const vote of votes) {
-      const candidate = db.select().from(schema.meetCandidates)
-        .where(and(eq(schema.meetCandidates.id, vote.candidateId), eq(schema.meetCandidates.meetId, req.params.id as string)))
-        .get();
-      if (!candidate) throw new AppError(400, `Candidate ${vote.candidateId} not found in this meet`);
-    }
-
-    // Delete existing votes for this user in this meet
-    db.delete(schema.meetCandidateVotes)
-      .where(and(
-        eq(schema.meetCandidateVotes.meetId, req.params.id as string),
-        eq(schema.meetCandidateVotes.userId, req.user!.id),
-      ))
-      .run();
-
-    // Insert new votes
-    for (const vote of votes) {
-      if (vote.points > 0) {
-        db.insert(schema.meetCandidateVotes).values({
-          id: uuid(),
-          meetId: req.params.id as string,
-          candidateId: vote.candidateId,
-          userId: req.user!.id,
-          points: vote.points,
-        }).run();
+      if (!validCandidateIds.has(vote.candidateId)) {
+        throw new AppError(400, `Candidate ${vote.candidateId} not found in this meet`);
       }
     }
 
+    // B3: Wrap vote submission in transaction
+    const submitVotes = sqlite.transaction(() => {
+      db.delete(schema.meetCandidateVotes)
+        .where(and(
+          eq(schema.meetCandidateVotes.meetId, req.params.id as string),
+          eq(schema.meetCandidateVotes.userId, req.user!.id),
+        ))
+        .run();
+
+      for (const vote of votes) {
+        if (vote.points > 0) {
+          db.insert(schema.meetCandidateVotes).values({
+            id: uuid(),
+            meetId: req.params.id as string,
+            candidateId: vote.candidateId,
+            userId: req.user!.id,
+            points: vote.points,
+          }).run();
+        }
+      }
+    });
+
+    submitVotes();
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -902,6 +950,10 @@ meetRoutes.post('/:id/date-options', (req: Request, res: Response, next: NextFun
 
     const { dateTime } = req.body;
     if (!dateTime) throw new AppError(400, 'dateTime is required');
+    // B6: Validate dateTime
+    if (typeof dateTime !== 'string' || dateTime.length > 50 || isNaN(Date.parse(dateTime))) {
+      throw new AppError(400, 'Invalid date/time value');
+    }
 
     const id = uuid();
     db.insert(schema.meetDateOptions).values({
@@ -926,7 +978,11 @@ meetRoutes.delete('/:id/date-options/:optionId', (req: Request, res: Response, n
       throw new AppError(403, 'Only the host or an admin can remove date options');
     }
 
-    db.delete(schema.meetDateOptions).where(eq(schema.meetDateOptions.id, req.params.optionId as string)).run();
+    // A3: Scope delete to this meet to prevent IDOR
+    db.delete(schema.meetDateOptions).where(and(
+      eq(schema.meetDateOptions.id, req.params.optionId as string),
+      eq(schema.meetDateOptions.meetId, req.params.id as string),
+    )).run();
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -964,29 +1020,33 @@ meetRoutes.put('/:id/date-votes', (req: Request, res: Response, next: NextFuncti
       }
     }
 
-    for (const vote of votes) {
-      const existing = db.select().from(schema.meetDateVotes)
-        .where(and(
-          eq(schema.meetDateVotes.dateOptionId, vote.dateOptionId),
-          eq(schema.meetDateVotes.userId, req.user!.id),
-        ))
-        .get();
+    // B3: Wrap date vote upsert in transaction
+    const submitDateVotes = sqlite.transaction(() => {
+      for (const vote of votes) {
+        const existing = db.select().from(schema.meetDateVotes)
+          .where(and(
+            eq(schema.meetDateVotes.dateOptionId, vote.dateOptionId),
+            eq(schema.meetDateVotes.userId, req.user!.id),
+          ))
+          .get();
 
-      if (existing) {
-        db.update(schema.meetDateVotes)
-          .set({ availability: vote.availability as any })
-          .where(eq(schema.meetDateVotes.id, existing.id))
-          .run();
-      } else {
-        db.insert(schema.meetDateVotes).values({
-          id: uuid(),
-          dateOptionId: vote.dateOptionId,
-          userId: req.user!.id,
-          availability: vote.availability as any,
-        }).run();
+        if (existing) {
+          db.update(schema.meetDateVotes)
+            .set({ availability: vote.availability as any })
+            .where(eq(schema.meetDateVotes.id, existing.id))
+            .run();
+        } else {
+          db.insert(schema.meetDateVotes).values({
+            id: uuid(),
+            dateOptionId: vote.dateOptionId,
+            userId: req.user!.id,
+            availability: vote.availability as any,
+          }).run();
+        }
       }
-    }
+    });
 
+    submitDateVotes();
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -1005,7 +1065,11 @@ meetRoutes.post('/:id/date-options/select', (req: Request, res: Response, next: 
     const { dateOptionId } = req.body;
     if (!dateOptionId) throw new AppError(400, 'dateOptionId is required');
 
-    const option = db.select().from(schema.meetDateOptions).where(eq(schema.meetDateOptions.id, dateOptionId)).get();
+    // A3: Scope lookup to this meet to prevent IDOR
+    const option = db.select().from(schema.meetDateOptions).where(and(
+      eq(schema.meetDateOptions.id, dateOptionId),
+      eq(schema.meetDateOptions.meetId, req.params.id as string),
+    )).get();
     if (!option) throw new AppError(404, 'Date option not found');
 
     const now = new Date().toISOString();
@@ -1061,24 +1125,27 @@ meetRoutes.post('/:id/top5', (req: Request, res: Response, next: NextFunction) =
       throw new AppError(400, `You can only select up to ${Math.min(5, validBookIds.size)} books`);
     }
 
-    // Delete existing top5 for this user in this meet
-    db.delete(schema.meetTop5)
-      .where(and(
-        eq(schema.meetTop5.meetId, req.params.id as string),
-        eq(schema.meetTop5.userId, req.user!.id),
-      ))
-      .run();
+    // B3: Wrap top5 submission in transaction
+    const submitTop5 = sqlite.transaction(() => {
+      db.delete(schema.meetTop5)
+        .where(and(
+          eq(schema.meetTop5.meetId, req.params.id as string),
+          eq(schema.meetTop5.userId, req.user!.id),
+        ))
+        .run();
 
-    // Insert new entries
-    for (const entry of entries) {
-      db.insert(schema.meetTop5).values({
-        id: uuid(),
-        meetId: req.params.id as string,
-        userId: req.user!.id,
-        bookId: entry.bookId,
-        rank: entry.rank,
-      }).run();
-    }
+      for (const entry of entries) {
+        db.insert(schema.meetTop5).values({
+          id: uuid(),
+          meetId: req.params.id as string,
+          userId: req.user!.id,
+          bookId: entry.bookId,
+          rank: entry.rank,
+        }).run();
+      }
+    });
+
+    submitTop5();
 
     res.json({ ok: true });
   } catch (err) {

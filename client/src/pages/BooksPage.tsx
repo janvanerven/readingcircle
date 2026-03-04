@@ -27,20 +27,23 @@ export function BooksPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    loadBooks();
-  }, []);
+  const [loadError, setLoadError] = useState(false);
 
-  async function loadBooks() {
-    try {
-      const data = await api<BookResponse[]>('/books');
-      setBooks(data);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const data = await api<BookResponse[]>('/books');
+        if (!cancelled) setBooks(data);
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-  }
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   const filterOptions = useMemo(() => {
     const types = [...new Set(books.map(b => b.type).filter(Boolean))].sort() as string[];
@@ -103,6 +106,9 @@ export function BooksPage() {
   if (loading) {
     return <div className="text-brown-light animate-pulse font-serif text-lg">{t('common.loading')}</div>;
   }
+  if (loadError) {
+    return <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{t('common.loadError')}</div>;
+  }
 
   const inputClass = "w-full px-4 py-2.5 rounded-lg border border-warm-gray bg-cream/50 text-brown focus:outline-none focus:ring-2 focus:ring-burgundy/30 focus:border-burgundy transition";
 
@@ -128,8 +134,9 @@ export function BooksPage() {
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-brown mb-1">{t('books.titleLabel')} *</label>
+              <label htmlFor="add-book-title" className="block text-sm font-medium text-brown mb-1">{t('books.titleLabel')} *</label>
               <input
+                id="add-book-title"
                 type="text"
                 value={newBook.title}
                 onChange={e => setNewBook({ ...newBook, title: e.target.value })}
@@ -138,8 +145,9 @@ export function BooksPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-brown mb-1">{t('books.authorLabel')} *</label>
+              <label htmlFor="add-book-author" className="block text-sm font-medium text-brown mb-1">{t('books.authorLabel')} *</label>
               <input
+                id="add-book-author"
                 type="text"
                 value={newBook.author}
                 onChange={e => setNewBook({ ...newBook, author: e.target.value })}

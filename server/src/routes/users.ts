@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { authenticate, requireAdmin, requireSetupComplete } from '../middleware/auth';
-import { db, schema } from '../db';
+import { db, schema, sqlite } from '../db';
 import { eq, and, sql } from 'drizzle-orm';
 import { AppError } from '../middleware/error';
 
@@ -172,8 +172,9 @@ userRoutes.patch('/:id/admin', requireAdmin, (req: Request, res: Response, next:
     const user = db.select().from(schema.users).where(eq(schema.users.id, id)).get();
     if (!user) throw new AppError(404, 'User not found');
 
+    // A2: Increment tokenVersion to invalidate existing refresh tokens
     db.update(schema.users)
-      .set({ isAdmin: !user.isAdmin, updatedAt: new Date().toISOString() })
+      .set({ isAdmin: !user.isAdmin, tokenVersion: user.tokenVersion + 1, updatedAt: new Date().toISOString() })
       .where(eq(schema.users.id, id))
       .run();
 
@@ -194,6 +195,15 @@ userRoutes.delete('/:id', requireAdmin, (req: Request, res: Response, next: Next
 
     const user = db.select().from(schema.users).where(eq(schema.users.id, id)).get();
     if (!user) throw new AppError(404, 'User not found');
+
+    // A10: Check if user hosts any meets
+    const hostedMeets = db.select({ id: schema.meets.id })
+      .from(schema.meets)
+      .where(eq(schema.meets.hostId, id))
+      .all();
+    if (hostedMeets.length > 0) {
+      throw new AppError(400, 'Cannot remove user who is hosting meets. Reassign or delete their meets first.');
+    }
 
     db.delete(schema.users).where(eq(schema.users.id, id)).run();
     res.json({ ok: true });

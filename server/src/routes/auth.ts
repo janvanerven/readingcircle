@@ -43,7 +43,8 @@ authRoutes.post('/login', authLimiter, async (req: Request, res: Response, next:
   }
 });
 
-authRoutes.post('/refresh', async (req: Request, res: Response, next: NextFunction) => {
+// A6: Rate limit on /refresh
+authRoutes.post('/refresh', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = req.cookies?.refreshToken;
     if (!token) {
@@ -58,7 +59,8 @@ authRoutes.post('/refresh', async (req: Request, res: Response, next: NextFuncti
   }
 });
 
-authRoutes.post('/setup', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+// A6: Rate limit on /setup
+authRoutes.post('/setup', authLimiter, authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.user?.isTemporary) {
       res.status(400).json({ error: 'Account setup already completed' });
@@ -110,7 +112,7 @@ authRoutes.get('/me', authenticate, (req: Request, res: Response) => {
   res.json({ user: req.user });
 });
 
-// Change username
+// Change username — B3: wrapped in transaction
 authRoutes.patch('/username', authenticate, requireSetupComplete, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { newUsername: rawUsername, currentPassword } = req.body;
@@ -135,20 +137,24 @@ authRoutes.patch('/username', authenticate, requireSetupComplete, async (req: Re
     const valid = await verifyPassword(currentPassword, user.passwordHash);
     if (!valid) throw new AppError(401, 'Current password is incorrect');
 
-    const existing = db.select().from(schema.users).where(sql`lower(${schema.users.username}) = ${newUsername.toLowerCase()}`).get();
-    if (existing && existing.id !== req.user!.id) {
-      throw new AppError(400, 'Username already taken');
-    }
+    const changeName = sqlite.transaction(() => {
+      const existing = db.select().from(schema.users).where(sql`lower(${schema.users.username}) = ${newUsername.toLowerCase()}`).get();
+      if (existing && existing.id !== req.user!.id) {
+        throw new AppError(400, 'Username already taken');
+      }
 
-    const now = new Date().toISOString();
-    db.update(schema.users)
-      .set({ username: newUsername, updatedAt: now })
-      .where(eq(schema.users.id, req.user!.id))
-      .run();
+      const now = new Date().toISOString();
+      db.update(schema.users)
+        .set({ username: newUsername, updatedAt: now })
+        .where(eq(schema.users.id, req.user!.id))
+        .run();
+    });
+
+    changeName();
 
     const authUser = { id: user.id, username: newUsername, isAdmin: user.isAdmin, isTemporary: user.isTemporary, locale: user.locale };
     const accessToken = generateAccessToken(authUser);
-    const refreshToken = generateRefreshToken(user.id);
+    const refreshToken = generateRefreshToken(user.id, user.tokenVersion);
 
     res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
     res.json({ accessToken, user: authUser });
@@ -157,7 +163,7 @@ authRoutes.patch('/username', authenticate, requireSetupComplete, async (req: Re
   }
 });
 
-// Change password
+// Change password — A2: increment tokenVersion
 authRoutes.patch('/password', authenticate, requireSetupComplete, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -179,7 +185,7 @@ authRoutes.patch('/password', authenticate, requireSetupComplete, async (req: Re
     const now = new Date().toISOString();
 
     db.update(schema.users)
-      .set({ passwordHash, updatedAt: now })
+      .set({ passwordHash, tokenVersion: user.tokenVersion + 1, updatedAt: now })
       .where(eq(schema.users.id, req.user!.id))
       .run();
 
@@ -212,7 +218,7 @@ authRoutes.patch('/locale', authenticate, requireSetupComplete, async (req: Requ
   }
 });
 
-// Forgot password - request reset
+// Forgot password — A11: email normalization, B3: transaction
 authRoutes.post('/forgot-password', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email } = req.body;
@@ -222,29 +228,33 @@ authRoutes.post('/forgot-password', authLimiter, async (req: Request, res: Respo
       return;
     }
 
-    const user = db.select().from(schema.users).where(eq(schema.users.email, email)).get();
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = db.select().from(schema.users).where(sql`lower(${schema.users.email}) = ${normalizedEmail}`).get();
     if (user) {
-      // Invalidate any existing unused reset tokens for this user
-      db.delete(schema.passwordResetTokens)
-        .where(and(
-          eq(schema.passwordResetTokens.userId, user.id),
-          sql`${schema.passwordResetTokens.usedAt} IS NULL`,
-        ))
-        .run();
-
       const token = generateMagicLinkToken();
       const now = new Date().toISOString();
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
 
-      db.insert(schema.passwordResetTokens).values({
-        id: uuid(),
-        userId: user.id,
-        token,
-        expiresAt,
-        createdAt: now,
-      }).run();
+      const createReset = sqlite.transaction(() => {
+        // Invalidate any existing unused reset tokens for this user
+        db.delete(schema.passwordResetTokens)
+          .where(and(
+            eq(schema.passwordResetTokens.userId, user.id),
+            sql`${schema.passwordResetTokens.usedAt} IS NULL`,
+          ))
+          .run();
 
-      await sendPasswordResetEmail(email, token, user.locale);
+        db.insert(schema.passwordResetTokens).values({
+          id: uuid(),
+          userId: user.id,
+          token,
+          expiresAt,
+          createdAt: now,
+        }).run();
+      });
+
+      createReset();
+      await sendPasswordResetEmail(normalizedEmail, token, user.locale);
     }
 
     // Always return 200
@@ -254,7 +264,7 @@ authRoutes.post('/forgot-password', authLimiter, async (req: Request, res: Respo
   }
 });
 
-// Reset password with token
+// Reset password with token — A2: increment tokenVersion
 authRoutes.post('/reset-password', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { token, password } = req.body;
@@ -283,8 +293,13 @@ authRoutes.post('/reset-password', authLimiter, async (req: Request, res: Respon
         .where(eq(schema.passwordResetTokens.id, resetToken.id))
         .run();
 
+      // A2: Increment tokenVersion to invalidate existing refresh tokens
       db.update(schema.users)
-        .set({ passwordHash, updatedAt: now })
+        .set({
+          passwordHash,
+          tokenVersion: sql`${schema.users.tokenVersion} + 1`,
+          updatedAt: now,
+        })
         .where(eq(schema.users.id, resetToken.userId))
         .run();
     });

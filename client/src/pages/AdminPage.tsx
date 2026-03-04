@@ -143,8 +143,28 @@ export function AdminPage() {
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState('');
 
+  const [membersError, setMembersError] = useState(false);
+
   useEffect(() => {
-    loadMembers();
+    let cancelled = false;
+    async function load() {
+      try {
+        const [membersData, invData] = await Promise.all([
+          api<UserResponse[]>('/users'),
+          api<InvitationResponse[]>('/invitations'),
+        ]);
+        if (!cancelled) {
+          setMembers(membersData);
+          setInvitations(invData);
+        }
+      } catch {
+        if (!cancelled) setMembersError(true);
+      } finally {
+        if (!cancelled) setMembersLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
   }, []);
 
   async function loadMembers() {
@@ -655,6 +675,8 @@ export function AdminPage() {
 
         {membersLoading ? (
           <div className="text-brown-light animate-pulse text-sm">{t('admin.loadingMembers')}</div>
+        ) : membersError ? (
+          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{t('common.loadError')}</div>
         ) : (
           <div className="divide-y divide-warm-gray-light">
             {members.map(m => (
@@ -680,10 +702,12 @@ export function AdminPage() {
                 {m.id !== user?.id && (
                   <div className="flex gap-1">
                     <button onClick={() => toggleAdmin(m.id)} title={m.isAdmin ? t('admin.removeAdmin') : t('admin.makeAdmin')}
+                      aria-label={m.isAdmin ? t('admin.removeAdmin') : t('admin.makeAdmin')}
                       className="p-2 text-brown-light hover:bg-warm-gray-light rounded-lg transition-colors">
                       {m.isAdmin ? <ShieldOff className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
                     </button>
                     <button onClick={() => removeMember(m.id, m.username)} title={t('admin.removeFromCircle')}
+                      aria-label={t('admin.removeFromCircle')}
                       className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>

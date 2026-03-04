@@ -12,10 +12,13 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 export function validatePassword(password: string): string | null {
-  const { minLength, requireUppercase, requireLowercase, requireNumber, requireSpecial } = PASSWORD_REQUIREMENTS;
+  const { minLength, maxLength, requireUppercase, requireLowercase, requireNumber, requireSpecial } = PASSWORD_REQUIREMENTS;
 
   if (password.length < minLength) {
     return `Password must be at least ${minLength} characters`;
+  }
+  if (password.length > maxLength) {
+    return `Password must be at most ${maxLength} characters`;
   }
   if (requireUppercase && !/[A-Z]/.test(password)) {
     return 'Password must contain at least one uppercase letter';
