@@ -19,6 +19,7 @@ export interface BookResponse {
   originalLanguage: string | null;
   type: string | null;
   introduction: string | null;
+  coverUrl: string | null;
   addedBy: string;
   addedByUsername: string;
   createdAt: string;
@@ -87,6 +88,7 @@ export interface CandidateResponse {
   bookId: string;
   bookTitle: string;
   bookAuthor: string;
+  bookCoverUrl: string | null;
   motivation: string | null;
   addedBy: string;
   addedByUsername: string;
@@ -131,6 +133,7 @@ export interface AggregatedRankingResponse {
   bookId: string;
   bookTitle: string;
   bookAuthor: string;
+  bookCoverUrl: string | null;
   totalPoints: number;
   appearances: number;
 }

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { api, ApiError } from '@/lib/api';
 import { BookOpen, ArrowLeft, MessageSquare, Calendar, Pencil, Trash2, X, CheckCircle } from 'lucide-react';
+import { BookCover } from '@/components/BookCover';
 import { formatDate } from '@/lib/utils';
 import { phaseDotColors, phaseTextColors } from '@/lib/phase-styles';
 import type { BookDetailResponse } from '@readingcircle/shared';
@@ -248,9 +249,7 @@ export function BookDetailPage() {
         ) : (
           <>
             <div className="flex items-start gap-4">
-              <div className="w-14 h-14 rounded-xl bg-burgundy/10 flex items-center justify-center flex-shrink-0">
-                <BookOpen className="w-7 h-7 text-burgundy" />
-              </div>
+              <BookCover coverUrl={book.coverUrl} title={book.title} size="lg" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl sm:text-3xl font-serif font-bold text-brown">{book.title}</h1>

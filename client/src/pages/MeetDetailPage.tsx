@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { formatDateTime, toLocalDateTimeInput } from '@/lib/utils';
 import { ArrowLeft, Calendar, MapPin, BookOpen, Vote, Clock, Trophy, AlertTriangle, Check, X, Minus, Eye, Trash2, ChevronUp, ChevronDown, Pencil } from 'lucide-react';
 import { PhaseStepper } from '@/components/PhaseStepper';
+import { BookCover } from '@/components/BookCover';
 import type { MeetDetailResponse, BookResponse, Top5EntryResponse, AggregatedRankingResponse, UserResponse } from '@readingcircle/shared';
 import { VOTING_POINTS_TOTAL } from '@readingcircle/shared';
 
@@ -348,7 +349,9 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
               <div key={c.id} className={`flex items-start justify-between p-3 rounded-lg ${
                 canSelectAfterReveal && isTopCandidate ? 'bg-sage/5 border border-sage/20' : 'bg-cream/50'
               }`}>
-                <div>
+                <div className="flex items-start gap-3">
+                  <BookCover coverUrl={c.bookCoverUrl} title={c.bookTitle} size="sm" />
+                  <div>
                   <div className="flex items-center gap-2">
                     <Link to={`/books/${c.bookId}`} className="font-medium text-brown hover:text-burgundy">{c.bookTitle}</Link>
                     {c.alreadySelectedInMeet && (
@@ -372,6 +375,7 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
                   {c.points !== undefined && (
                     <p className="text-sm font-medium text-burgundy mt-1">{t('meetDetail.points', { count: c.points })}</p>
                   )}
+                  </div>
                 </div>
                 <div className="flex gap-1">
                   {/* Draft: select only if single candidate */}
@@ -762,17 +766,20 @@ function VotingResultsSection({ meet }: { meet: MeetDetailResponse }) {
             <div key={c.id} className={`flex items-start justify-between p-3 rounded-lg ${
               isSelected ? 'bg-sage/10 border border-sage/20' : 'bg-cream/50'
             }`}>
-              <div>
-                <div className="flex items-center gap-2">
-                  <Link to={`/books/${c.bookId}`} className="font-medium text-brown hover:text-burgundy">{c.bookTitle}</Link>
-                  {isSelected && (
-                    <span className="inline-flex items-center gap-1 text-xs text-sage-dark font-medium">
-                      <Check className="w-3 h-3" /> {t('meetDetail.selectedBook')}
-                    </span>
-                  )}
+              <div className="flex items-start gap-3">
+                <BookCover coverUrl={c.bookCoverUrl} title={c.bookTitle} size="sm" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Link to={`/books/${c.bookId}`} className="font-medium text-brown hover:text-burgundy">{c.bookTitle}</Link>
+                    {isSelected && (
+                      <span className="inline-flex items-center gap-1 text-xs text-sage-dark font-medium">
+                        <Check className="w-3 h-3" /> {t('meetDetail.selectedBook')}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-brown-light">{t('common.by')} {c.bookAuthor}</p>
+                  {c.motivation && <p className="text-sm text-brown-light mt-1 italic">"{c.motivation}"</p>}
                 </div>
-                <p className="text-sm text-brown-light">{t('common.by')} {c.bookAuthor}</p>
-                {c.motivation && <p className="text-sm text-brown-light mt-1 italic">"{c.motivation}"</p>}
               </div>
               <span className="text-sm font-medium text-burgundy whitespace-nowrap ml-3">
                 {t('meetDetail.points', { count: c.points ?? 0 })}

@@ -5,6 +5,7 @@ import { db, schema } from '../db';
 import { eq, ne, and, sql } from 'drizzle-orm';
 import { AppError } from '../middleware/error';
 import { isValidStringField, isValidBookType } from '../utils/validation';
+import { fetchCoverUrl } from '../lib/openlibrary';
 
 export const bookRoutes = Router();
 
@@ -20,6 +21,7 @@ const bookSelectFields = {
   originalLanguage: schema.books.originalLanguage,
   type: schema.books.type,
   introduction: schema.books.introduction,
+  coverUrl: schema.books.coverUrl,
   addedBy: schema.books.addedBy,
   addedByUsername: schema.users.username,
   createdAt: schema.books.createdAt,
@@ -208,6 +210,16 @@ bookRoutes.post('/', (req: Request, res: Response, next: NextFunction) => {
       updatedAt: now,
     }).run();
 
+    // Background cover fetch (non-blocking)
+    fetchCoverUrl(title, author).then(coverUrl => {
+      if (coverUrl) {
+        db.update(schema.books)
+          .set({ coverUrl })
+          .where(eq(schema.books.id, id))
+          .run();
+      }
+    });
+
     const book = db
       .select(bookSelectFields)
       .from(schema.books)
@@ -290,6 +302,51 @@ bookRoutes.delete('/:id', (req: Request, res: Response, next: NextFunction) => {
     db.delete(schema.books).where(eq(schema.books.id, req.params.id as string)).run();
 
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Backfill covers for all books missing them (admin only)
+bookRoutes.post('/backfill-covers', requireAdmin, async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const booksWithoutCovers = db.select({ id: schema.books.id, title: schema.books.title, author: schema.books.author })
+      .from(schema.books)
+      .where(sql`${schema.books.coverUrl} IS NULL`)
+      .all();
+
+    let updated = 0;
+    for (const book of booksWithoutCovers) {
+      const coverUrl = await fetchCoverUrl(book.title, book.author);
+      if (coverUrl) {
+        db.update(schema.books).set({ coverUrl }).where(eq(schema.books.id, book.id)).run();
+        updated++;
+      }
+      // Be polite to Open Library
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    res.json({ total: booksWithoutCovers.length, updated });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Fetch/refresh cover for a book
+bookRoutes.post('/:id/fetch-cover', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const book = db.select().from(schema.books).where(eq(schema.books.id, req.params.id as string)).get();
+    if (!book) throw new AppError(404, 'Book not found');
+
+    const coverUrl = await fetchCoverUrl(book.title, book.author);
+    if (coverUrl) {
+      db.update(schema.books)
+        .set({ coverUrl })
+        .where(eq(schema.books.id, req.params.id as string))
+        .run();
+    }
+
+    res.json({ coverUrl });
   } catch (err) {
     next(err);
   }

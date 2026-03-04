@@ -31,6 +31,7 @@ export const books = sqliteTable('books', {
   originalLanguage: text('original_language'),
   type: text('type'),
   introduction: text('introduction'),
+  coverUrl: text('cover_url'),
   addedBy: text('added_by').notNull().references(() => users.id),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),

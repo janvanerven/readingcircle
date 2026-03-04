@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { BookOpen, Calendar, Users, ArrowRight, Trophy } from 'lucide-react';
+import { BookCover } from '@/components/BookCover';
 import { phaseBorderColors, phaseTextColors, phaseIcons } from '@/lib/phase-styles';
 import type { MeetResponse, BookResponse, AggregatedRankingResponse, LatestTop5Response, MeetPhase } from '@readingcircle/shared';
 
@@ -149,6 +150,7 @@ export function DashboardPage() {
                     i === 2 ? 'bg-orange-100 text-orange-700' :
                     'bg-warm-gray text-brown'
                   }`}>{i + 1}</span>
+                  <BookCover coverUrl={r.bookCoverUrl} title={r.bookTitle} size="sm" />
                   <div className="flex-1 min-w-0">
                     <span className="font-medium text-brown">{r.bookTitle}</span>
                     <span className="text-sm text-brown-light ml-2">{t('common.by')} {r.bookAuthor}</span>

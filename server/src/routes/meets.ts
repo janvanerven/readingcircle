@@ -129,13 +129,14 @@ meetRoutes.get('/top5/aggregate', (_req: Request, res: Response, next: NextFunct
         bookId: schema.meetTop5.bookId,
         bookTitle: schema.books.title,
         bookAuthor: schema.books.author,
+        bookCoverUrl: schema.books.coverUrl,
         rank: schema.meetTop5.rank,
       })
       .from(schema.meetTop5)
       .leftJoin(schema.books, eq(schema.meetTop5.bookId, schema.books.id))
       .all();
 
-    const aggregation = new Map<string, { bookTitle: string; bookAuthor: string; totalPoints: number; appearances: number }>();
+    const aggregation = new Map<string, { bookTitle: string; bookAuthor: string; bookCoverUrl: string | null; totalPoints: number; appearances: number }>();
 
     for (const entry of entries) {
       const points = 6 - entry.rank;
@@ -147,6 +148,7 @@ meetRoutes.get('/top5/aggregate', (_req: Request, res: Response, next: NextFunct
         aggregation.set(entry.bookId, {
           bookTitle: entry.bookTitle!,
           bookAuthor: entry.bookAuthor!,
+          bookCoverUrl: entry.bookCoverUrl,
           totalPoints: points,
           appearances: 1,
         });
@@ -197,6 +199,7 @@ meetRoutes.get('/:id', (req: Request, res: Response, next: NextFunction) => {
         bookId: schema.meetCandidates.bookId,
         bookTitle: schema.books.title,
         bookAuthor: schema.books.author,
+        bookCoverUrl: schema.books.coverUrl,
         motivation: schema.meetCandidates.motivation,
         addedBy: schema.meetCandidates.addedBy,
         addedByUsername: schema.users.username,
@@ -633,6 +636,7 @@ meetRoutes.post('/:id/candidates', (req: Request, res: Response, next: NextFunct
       bookId,
       bookTitle: book.title,
       bookAuthor: book.author,
+      bookCoverUrl: book.coverUrl,
       motivation: motivation || null,
       addedBy: req.user!.id,
       addedByUsername: req.user!.username,

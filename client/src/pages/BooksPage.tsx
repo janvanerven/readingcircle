@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { BookOpen, Plus, Search, CheckCircle, ArrowUpDown } from 'lucide-react';
+import { BookCover } from '@/components/BookCover';
 import type { BookResponse, CreateBookRequest } from '@readingcircle/shared';
 import { BOOK_TYPES } from '@readingcircle/shared';
 
@@ -305,9 +306,7 @@ export function BooksPage() {
               className={`block bg-white rounded-xl border border-warm-gray ${book.isRead ? 'border-l-4 border-l-sage' : ''} p-6 hover:shadow-sm transition-all group`}
             >
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-lg bg-burgundy/10 flex items-center justify-center flex-shrink-0 group-hover:bg-burgundy/20 transition-colors">
-                  <BookOpen className="w-6 h-6 text-burgundy" />
-                </div>
+                <BookCover coverUrl={book.coverUrl} title={book.title} size="md" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-serif font-semibold text-brown text-lg">{book.title}</h3>
