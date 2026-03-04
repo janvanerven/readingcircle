@@ -27,7 +27,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'sha256-8UrHQYF9S+enppn+AVrPjj641qFQfrl6GUwxKlrdNxQ='"],
+      scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       imgSrc: ["'self'", 'https://*.openlibrary.org', 'https://archive.org', 'https://*.archive.org', 'data:'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
