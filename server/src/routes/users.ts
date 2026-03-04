@@ -21,7 +21,7 @@ userRoutes.get('/', (req: Request, res: Response) => {
   }).from(schema.users).all();
 
   if (!req.user?.isAdmin) {
-    res.json(users.map(({ email: _email, ...rest }) => rest));
+    res.json(users.map(({ email: _email, isTemporary: _isTemp, ...rest }) => rest));
     return;
   }
 

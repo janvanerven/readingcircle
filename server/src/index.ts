@@ -61,6 +61,11 @@ app.use('/api/meets', meetRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/export', exportRoutes);
 
+// API 404 handler — must come before SPA wildcard
+app.all('/api/*', (_req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
   const clientPath = path.join(__dirname, '../../client/dist');

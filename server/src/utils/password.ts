@@ -17,8 +17,8 @@ export function validatePassword(password: string): string | null {
   if (password.length < minLength) {
     return `Password must be at least ${minLength} characters`;
   }
-  if (password.length > maxLength) {
-    return `Password must be at most ${maxLength} characters`;
+  if (Buffer.byteLength(password, 'utf8') > maxLength) {
+    return `Password must be at most ${maxLength} bytes (multi-byte characters like emojis count as more than 1)`;
   }
   if (requireUppercase && !/[A-Z]/.test(password)) {
     return 'Password must contain at least one uppercase letter';

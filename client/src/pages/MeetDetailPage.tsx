@@ -23,25 +23,29 @@ export function MeetDetailPage() {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ hostId: '', location: '', description: '' });
   const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
   const [members, setMembers] = useState<UserResponse[]>([]);
 
   const loadMeet = useCallback(async () => {
+    const currentId = id;
     try {
       const [meetData, booksData] = await Promise.all([
-        api<MeetDetailResponse>(`/meets/${id}`),
+        api<MeetDetailResponse>(`/meets/${currentId}`),
         api<BookResponse[]>('/books'),
       ]);
+      if (currentId !== id) return;
       setMeet(meetData);
       setBooks(booksData);
 
       if (meetData.phase === 'completed') {
         const ranking = await api<AggregatedRankingResponse[]>('/meets/top5/aggregate');
+        if (currentId !== id) return;
         setAggregatedRanking(ranking);
       }
     } catch {
-      setLoadError(true);
+      if (currentId === id) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (currentId === id) setLoading(false);
     }
   }, [id]);
 
@@ -87,6 +91,7 @@ export function MeetDetailPage() {
         {editing ? (
           <form onSubmit={async (e) => {
             e.preventDefault();
+            setEditError('');
             setEditSaving(true);
             try {
               const body: Record<string, string> = {};
@@ -97,7 +102,7 @@ export function MeetDetailPage() {
               setEditing(false);
               loadMeet();
             } catch (err: unknown) {
-              alert(err instanceof Error ? err.message : 'Failed');
+              setEditError(err instanceof Error ? err.message : 'Failed');
             } finally {
               setEditSaving(false);
             }
@@ -108,6 +113,7 @@ export function MeetDetailPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
+            {editError && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{editError}</div>}
             <div>
               <label className="block text-sm font-medium text-brown mb-1">{t('meetDetail.hostLabel')}</label>
               <select value={editForm.hostId} onChange={e => setEditForm({ ...editForm, hostId: e.target.value })}
@@ -236,7 +242,7 @@ export function MeetDetailPage() {
         <>
           <SelectedBookSection meet={meet} />
           <VotingResultsSection meet={meet} />
-          <Top5Section meet={meet} onUpdate={loadMeet} />
+          <Top5Section meet={meet} books={books} onUpdate={loadMeet} />
         </>
       )}
 
@@ -260,10 +266,12 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
   const [motivation, setMotivation] = useState('');
   const [adding, setAdding] = useState(false);
   const [bookFilter, setBookFilter] = useState<BookFilterValue>('unread');
+  const [error, setError] = useState('');
 
   const addCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedBookId) return;
+    setError('');
     setAdding(true);
     try {
       await api(`/meets/${meet.id}/candidates`, {
@@ -275,13 +283,14 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
       setShowAddCandidate(false);
       onUpdate();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setError(err instanceof Error ? err.message : 'Failed');
     } finally {
       setAdding(false);
     }
   };
 
   const selectBook = async (bookId: string) => {
+    setError('');
     try {
       await api(`/meets/${meet.id}/candidates/select`, {
         method: 'POST',
@@ -289,16 +298,17 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
       });
       onUpdate();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setError(err instanceof Error ? err.message : 'Failed');
     }
   };
 
   const removeCandidate = async (candidateId: string) => {
+    setError('');
     try {
       await api(`/meets/${meet.id}/candidates/${candidateId}`, { method: 'DELETE' });
       onUpdate();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setError(err instanceof Error ? err.message : 'Failed');
     }
   };
 
@@ -331,6 +341,8 @@ function CandidatesSection({ meet, books, isHostOrAdmin, onUpdate }: {
           </button>
         )}
       </div>
+
+      {error && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200 mb-4">{error}</div>}
 
       {meet.selectedBookId && (
         <div className="p-4 bg-sage/10 rounded-lg border border-sage/20 mb-4">
@@ -436,6 +448,7 @@ function VotingSection({ meet, onUpdate, isHostOrAdmin }: {
   const [points, setPoints] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     // Initialize with user's existing votes or empty distribution
@@ -445,7 +458,7 @@ function VotingSection({ meet, onUpdate, isHostOrAdmin }: {
     // Populate with existing votes
     if (meet.myVotes && meet.myVotes.length > 0) {
       for (const v of meet.myVotes) {
-        if (init.hasOwnProperty(v.candidateId)) {
+        if (v.candidateId in init) {
           init[v.candidateId] = v.points;
         }
       }
@@ -459,24 +472,26 @@ function VotingSection({ meet, onUpdate, isHostOrAdmin }: {
   const hasVoted = meet.myVotes && meet.myVotes.length > 0;
 
   const submitVotes = async () => {
+    setError('');
     setSubmitting(true);
     try {
       const votes = Object.entries(points).map(([candidateId, pts]) => ({ candidateId, points: pts }));
       await api(`/meets/${meet.id}/votes`, { method: 'POST', body: JSON.stringify({ votes }) });
       onUpdate();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setError(err instanceof Error ? err.message : 'Failed');
     } finally {
       setSubmitting(false);
     }
   };
 
   const revealScores = async () => {
+    setError('');
     try {
       await api(`/meets/${meet.id}/votes/reveal`, { method: 'POST' });
       onUpdate();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setError(err instanceof Error ? err.message : 'Failed');
     }
   };
 
@@ -488,6 +503,8 @@ function VotingSection({ meet, onUpdate, isHostOrAdmin }: {
         <Vote className="w-5 h-5 text-burgundy" />
         {t('meetDetail.voteOnCandidates')}
       </h2>
+
+      {error && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200 mb-4">{error}</div>}
 
       {/* Vote status */}
       <div className="mb-4 p-3 bg-cream rounded-lg">
@@ -554,6 +571,7 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
   const [votes, setVotes] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [showAddDate, setShowAddDate] = useState(false);
+  const [error, setError] = useState('');
   const [newDateTime, setNewDateTime] = useState(() => {
     // Default to today at 19:00 local time
     const d = new Date();
@@ -574,6 +592,7 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
 
   const addDateOption = async () => {
     if (!newDateTime) return;
+    setError('');
     try {
       await api(`/meets/${meet.id}/date-options`, {
         method: 'POST',
@@ -583,33 +602,36 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
       setShowAddDate(false);
       onUpdate();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setError(err instanceof Error ? err.message : 'Failed');
     }
   };
 
   const removeDateOption = async (optionId: string) => {
+    setError('');
     try {
       await api(`/meets/${meet.id}/date-options/${optionId}`, { method: 'DELETE' });
       onUpdate();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setError(err instanceof Error ? err.message : 'Failed');
     }
   };
 
   const submitAvailability = async () => {
+    setError('');
     setSubmitting(true);
     try {
       const voteArray = Object.entries(votes).map(([dateOptionId, availability]) => ({ dateOptionId, availability }));
       await api(`/meets/${meet.id}/date-votes`, { method: 'PUT', body: JSON.stringify({ votes: voteArray }) });
       onUpdate();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setError(err instanceof Error ? err.message : 'Failed');
     } finally {
       setSubmitting(false);
     }
   };
 
   const selectDate = async (dateOptionId: string) => {
+    setError('');
     try {
       await api(`/meets/${meet.id}/date-options/select`, {
         method: 'POST',
@@ -617,7 +639,7 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
       });
       onUpdate();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setError(err instanceof Error ? err.message : 'Failed');
     }
   };
 
@@ -639,6 +661,7 @@ function AvailabilitySection({ meet, onUpdate, isHostOrAdmin }: {
           <Clock className="w-5 h-5 text-burgundy" />
           {isDraft ? t('meetDetail.dateOptions') : t('meetDetail.availabilityPoll')}
         </h2>
+        {error && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{error}</div>}
         {isHostOrAdmin && isDraft && !meet.selectedDate && (
           <button onClick={() => {
             if (!showAddDate) {
@@ -843,30 +866,33 @@ function SelectedBookSection({ meet }: { meet: MeetDetailResponse }) {
   );
 }
 
-function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: () => void }) {
+function Top5Section({ meet, books, onUpdate }: { meet: MeetDetailResponse; books: BookResponse[]; onUpdate: () => void }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [entries, setEntries] = useState<{ bookId: string; rank: number }[]>([]);
-  const [eligibleBooks, setEligibleBooks] = useState<BookResponse[]>([]);
+  const [eligibleBookIds, setEligibleBookIds] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
         const allMeets = await api<{ id: string; phase: string; selectedBookId: string | null }[]>('/meets');
-        const validBookIds = allMeets
-          .filter(m => (m.phase === 'completed' || m.phase === 'reading') && m.selectedBookId)
-          .map(m => m.selectedBookId!);
-
-        const allBooks = await api<BookResponse[]>('/books');
-        if (!cancelled) setEligibleBooks(allBooks.filter(b => validBookIds.includes(b.id)));
+        const validBookIds = new Set(
+          allMeets
+            .filter(m => (m.phase === 'completed' || m.phase === 'reading') && m.selectedBookId)
+            .map(m => m.selectedBookId!)
+        );
+        if (!cancelled) setEligibleBookIds(validBookIds);
       } catch { /* ignore */ }
     }
     load();
     return () => { cancelled = true; };
   }, []);
+
+  const eligibleBooks = books.filter(b => eligibleBookIds.has(b.id));
 
   const myEntries = meet.top5Entries.filter(e => e.userId === user?.id);
   const otherEntries = meet.top5Entries.filter(e => e.userId !== user?.id);
@@ -880,13 +906,14 @@ function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: (
   });
 
   const submitTop5 = async () => {
+    setError('');
     setSubmitting(true);
     try {
       await api(`/meets/${meet.id}/top5`, { method: 'POST', body: JSON.stringify({ entries }) });
       setShowForm(false);
       onUpdate();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setError(err instanceof Error ? err.message : 'Failed');
     } finally {
       setSubmitting(false);
     }
@@ -905,6 +932,8 @@ function Top5Section({ meet, onUpdate }: { meet: MeetDetailResponse; onUpdate: (
           {myEntries.length > 0 ? t('meetDetail.updateMyTop5') : t('meetDetail.addMyTop5')}
         </button>
       </div>
+
+      {error && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200 mb-4">{error}</div>}
 
       {showForm && (
         <div className="bg-cream rounded-lg p-4 mb-4 space-y-3">

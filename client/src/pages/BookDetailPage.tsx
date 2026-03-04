@@ -55,7 +55,7 @@ export function BookDetailPage() {
       const data = await api<BookDetailResponse>(`/books/${id}`);
       setBook(data);
     } catch {
-      // ignore
+      setLoadError(true);
     } finally {
       setLoading(false);
     }

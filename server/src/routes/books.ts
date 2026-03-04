@@ -393,6 +393,9 @@ bookRoutes.post('/import', requireAdmin, (req: Request, res: Response, next: Nex
     if (!rows || !Array.isArray(rows)) {
       throw new AppError(400, 'books array is required');
     }
+    if (rows.length > 500) {
+      throw new AppError(400, 'Maximum 500 rows per import');
+    }
 
     const now = new Date().toISOString();
     let imported = 0;

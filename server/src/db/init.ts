@@ -121,7 +121,12 @@ export function initializeDatabase(sqlite: DatabaseType) {
 
   // Migrations for new columns (safe to re-run — catch if column already exists)
   const addColumn = (table: string, column: string, type: string) => {
-    try { sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`); } catch { /* column already exists */ }
+    try {
+      sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (!msg.includes('duplicate column')) throw err;
+    }
   };
   addColumn('books', 'year', 'TEXT');
   addColumn('books', 'country', 'TEXT');

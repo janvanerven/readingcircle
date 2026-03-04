@@ -7,8 +7,11 @@ import { AppError } from '../middleware/error';
 import { sendInvitationEmail } from './email';
 import { isValidUsername, isValidEmail } from '../utils/validation';
 
-// A5: Dummy hash for timing oracle prevention
-const DUMMY_HASH = '$2b$12$LJ3m4ys3Lg7E3cSWiSgAOeFMkYjWoyRXGMXKmBGelIQQnhaqbwKlC';
+// A5: Dummy hash for timing oracle prevention — generated at startup to avoid leaking a static value
+let DUMMY_HASH = '$2b$12$LJ3m4ys3Lg7E3cSWiSgAOeFMkYjWoyRXGMXKmBGelIQQnhaqbwKlC';
+
+// Generate a fresh dummy hash at startup so the constant isn't predictable from source code
+hashPassword('dummy-password-for-timing-oracle').then(h => { DUMMY_HASH = h; });
 
 export async function seedAdmin(): Promise<void> {
   const username = process.env.ADMIN_USERNAME;

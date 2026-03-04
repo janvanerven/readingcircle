@@ -122,10 +122,12 @@ export function AdminPage() {
 
   // Export backup state
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
 
   // Cover fetch state
   const [fetchingCovers, setFetchingCovers] = useState(false);
   const [coverResult, setCoverResult] = useState<{ total: number; updated: number } | null>(null);
+  const [coverError, setCoverError] = useState('');
 
   // Meets import state
   const meetFileInputRef = useRef<HTMLInputElement>(null);
@@ -144,6 +146,7 @@ export function AdminPage() {
   const [inviteError, setInviteError] = useState('');
 
   const [membersError, setMembersError] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -183,21 +186,23 @@ export function AdminPage() {
   }
 
   const toggleAdmin = async (memberId: string) => {
+    setActionError('');
     try {
       await api(`/users/${memberId}/admin`, { method: 'PATCH' });
       loadMembers();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setActionError(err instanceof Error ? err.message : 'Failed');
     }
   };
 
   const removeMember = async (memberId: string, username: string) => {
     if (!confirm(t('admin.confirmRemove', { name: username }))) return;
+    setActionError('');
     try {
       await api(`/users/${memberId}`, { method: 'DELETE' });
       loadMembers();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setActionError(err instanceof Error ? err.message : 'Failed');
     }
   };
 
@@ -584,9 +589,11 @@ export function AdminPage() {
       <div className="bg-white rounded-xl border border-warm-gray p-6 space-y-4">
         <h2 className="font-serif font-semibold text-brown text-lg">{t('admin.exportBackup')}</h2>
         <p className="text-sm text-brown-light">{t('admin.exportBackupDesc')}</p>
+        {exportError && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{exportError}</div>}
         <button
           onClick={async () => {
             setExporting(true);
+            setExportError('');
             try {
               const data = await api('/export');
               const json = JSON.stringify(data, null, 2);
@@ -598,7 +605,7 @@ export function AdminPage() {
               a.click();
               URL.revokeObjectURL(url);
             } catch (err: unknown) {
-              alert(err instanceof Error ? err.message : 'Export failed');
+              setExportError(err instanceof Error ? err.message : 'Export failed');
             } finally {
               setExporting(false);
             }
@@ -615,17 +622,19 @@ export function AdminPage() {
       <div className="bg-white rounded-xl border border-warm-gray p-6 space-y-4">
         <h2 className="font-serif font-semibold text-brown text-lg">{t('admin.fetchCovers')}</h2>
         <p className="text-sm text-brown-light">{t('admin.fetchCoversDesc')}</p>
+        {coverError && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{coverError}</div>}
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={async () => {
               setFetchingCovers(true);
               setCoverResult(null);
+              setCoverError('');
               try {
                 const data = await api<{ total: number; updated: number }>('/books/backfill-covers', { method: 'POST' });
                 setCoverResult(data);
               } catch (err: unknown) {
                 setCoverResult(null);
-                alert(err instanceof Error ? err.message : 'Failed');
+                setCoverError(err instanceof Error ? err.message : 'Failed');
               } finally {
                 setFetchingCovers(false);
               }
@@ -672,6 +681,8 @@ export function AdminPage() {
             </div>
           </form>
         )}
+
+        {actionError && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200 mb-3">{actionError}</div>}
 
         {membersLoading ? (
           <div className="text-brown-light animate-pulse text-sm">{t('admin.loadingMembers')}</div>

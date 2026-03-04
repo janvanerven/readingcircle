@@ -18,6 +18,7 @@ export function MeetsPage() {
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
 
   const [loadError, setLoadError] = useState(false);
 
@@ -39,6 +40,7 @@ export function MeetsPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCreateError('');
     setCreating(true);
     try {
       const meet = await api<MeetWithLabel>('/meets', {
@@ -46,8 +48,8 @@ export function MeetsPage() {
         body: JSON.stringify({ location: location || undefined, description: description || undefined }),
       });
       navigate(`/meets/${meet.id}`);
-    } catch {
-      // ignore
+    } catch (err: unknown) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create meet');
     } finally {
       setCreating(false);
     }
@@ -93,6 +95,7 @@ export function MeetsPage() {
       {showCreate && (
         <form onSubmit={handleCreate} className="bg-white rounded-xl border border-warm-gray p-6 space-y-4">
           <h3 className="font-serif font-semibold text-brown text-lg">{t('meets.createNewMeet')}</h3>
+          {createError && <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{createError}</div>}
           <div>
             <label htmlFor="meet-location" className="block text-sm font-medium text-brown mb-1">{t('meets.locationLabel')}</label>
             <input

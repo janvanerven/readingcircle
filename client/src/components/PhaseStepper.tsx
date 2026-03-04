@@ -40,6 +40,7 @@ export function PhaseStepper({
   const [pendingPhase, setPendingPhase] = useState<string | null>(null);
   const [changing, setChanging] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [error, setError] = useState('');
 
   const currentIndex = STEPS.findIndex(s => s.phase === currentPhase);
 
@@ -83,7 +84,7 @@ export function PhaseStepper({
       await onPhaseChange(pendingPhase);
       setPendingPhase(null);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setError(err instanceof Error ? err.message : 'Failed');
     } finally {
       setChanging(false);
     }
@@ -91,21 +92,23 @@ export function PhaseStepper({
 
   const handleCancel = async () => {
     setChanging(true);
+    setError('');
     try {
       await onCancel('cancelled');
       setPendingPhase(null);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setError(err instanceof Error ? err.message : 'Failed');
     } finally {
       setChanging(false);
     }
   };
 
   const handleDelete = async () => {
+    setError('');
     try {
       await onDelete();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setError(err instanceof Error ? err.message : 'Failed');
     }
   };
 
@@ -153,6 +156,8 @@ export function PhaseStepper({
           );
         })}
       </div>
+
+      {error && <div className="mt-3 bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">{error}</div>}
 
       {/* Action buttons (cancel/delete) for host/admin */}
       {isHostOrAdmin && currentPhase !== 'completed' && (

@@ -439,67 +439,73 @@ meetRoutes.put('/:id', (req: Request, res: Response, next: NextFunction) => {
 // Advance phase
 meetRoutes.post('/:id/phase', (req: Request, res: Response, next: NextFunction) => {
   try {
-    const meet = db.select().from(schema.meets).where(eq(schema.meets.id, req.params.id as string)).get();
-    if (!meet) throw new AppError(404, 'Meet not found');
-    if (!isHostOrAdmin(meet, req.user!.id, req.user!.isAdmin)) {
-      throw new AppError(403, 'Only the host or an admin can change the phase');
-    }
-
+    const meetId = req.params.id as string;
     const { phase } = req.body;
-    const validTransitions: Record<string, string[]> = {
-      draft: ['voting', 'reading', 'cancelled'],
-      voting: ['reading', 'cancelled'],
-      reading: ['completed', 'cancelled'],
-    };
 
-    const allowed = validTransitions[meet.phase];
-    if (!allowed || !allowed.includes(phase)) {
-      throw new AppError(400, `Cannot transition from ${meet.phase} to ${phase}`);
-    }
-
-    // Validate transition to reading: must have selected book and date
-    if (phase === 'reading') {
-      const updatedMeet = db.select().from(schema.meets).where(eq(schema.meets.id, req.params.id as string)).get();
-      if (!updatedMeet?.selectedBookId) {
-        throw new AppError(400, 'A book must be selected before moving to the reading phase');
+    const result = sqlite.transaction(() => {
+      const meet = db.select().from(schema.meets).where(eq(schema.meets.id, meetId)).get();
+      if (!meet) throw new AppError(404, 'Meet not found');
+      if (!isHostOrAdmin(meet, req.user!.id, req.user!.isAdmin)) {
+        throw new AppError(403, 'Only the host or an admin can change the phase');
       }
-      if (!updatedMeet?.selectedDate) {
-        throw new AppError(400, 'A date must be selected before moving to the reading phase');
+
+      const validTransitions: Record<string, string[]> = {
+        draft: ['voting', 'reading', 'cancelled'],
+        voting: ['reading', 'cancelled'],
+        reading: ['completed', 'cancelled'],
+      };
+
+      const allowed = validTransitions[meet.phase];
+      if (!allowed || !allowed.includes(phase)) {
+        throw new AppError(400, `Cannot transition from ${meet.phase} to ${phase}`);
       }
-    }
 
-    const now = new Date().toISOString();
-    db.update(schema.meets)
-      .set({ phase, updatedAt: now })
-      .where(eq(schema.meets.id, req.params.id as string))
-      .run();
+      // Validate transition to reading: must have selected book and date
+      if (phase === 'reading') {
+        const updatedMeet = db.select().from(schema.meets).where(eq(schema.meets.id, meetId)).get();
+        if (!updatedMeet?.selectedBookId) {
+          throw new AppError(400, 'A book must be selected before moving to the reading phase');
+        }
+        if (!updatedMeet?.selectedDate) {
+          throw new AppError(400, 'A date must be selected before moving to the reading phase');
+        }
+      }
 
-    // Send email notifications (fire-and-forget)
+      const now = new Date().toISOString();
+      db.update(schema.meets)
+        .set({ phase, updatedAt: now })
+        .where(eq(schema.meets.id, meetId))
+        .run();
+
+      return { phase, meet };
+    })();
+
+    // Send email notifications OUTSIDE transaction (fire-and-forget)
     const recipients = db.select({ email: schema.users.email, locale: schema.users.locale })
       .from(schema.users)
       .where(eq(schema.users.isTemporary, false))
       .all();
 
-    if (phase === 'voting') {
+    if (result.phase === 'voting') {
       const host = db.select({ username: schema.users.username })
-        .from(schema.users).where(eq(schema.users.id, meet.hostId)).get();
+        .from(schema.users).where(eq(schema.users.id, result.meet.hostId)).get();
       const meetLabel = getMeetLabel(host?.username || 'Unknown', null);
       const candidates = db.select({ title: schema.books.title, author: schema.books.author })
         .from(schema.meetCandidates)
         .leftJoin(schema.books, eq(schema.meetCandidates.bookId, schema.books.id))
-        .where(eq(schema.meetCandidates.meetId, req.params.id as string))
+        .where(eq(schema.meetCandidates.meetId, meetId))
         .all()
         .map(c => ({ title: c.title!, author: c.author! }));
 
       for (const r of recipients) {
-        sendVotingOpenedEmail(r.email, meetLabel, req.params.id as string, candidates, r.locale)
+        sendVotingOpenedEmail(r.email, meetLabel, meetId, candidates, r.locale)
           .catch(err => console.error('Failed to send voting notification to', r.email, err));
       }
-    } else if (phase === 'reading') {
+    } else if (result.phase === 'reading') {
       const updatedMeet = db.select({
         selectedBookId: schema.meets.selectedBookId,
         selectedDate: schema.meets.selectedDate,
-      }).from(schema.meets).where(eq(schema.meets.id, req.params.id as string)).get();
+      }).from(schema.meets).where(eq(schema.meets.id, meetId)).get();
 
       const book = updatedMeet?.selectedBookId
         ? db.select({ title: schema.books.title, author: schema.books.author })
@@ -508,13 +514,13 @@ meetRoutes.post('/:id/phase', (req: Request, res: Response, next: NextFunction) 
 
       if (book) {
         for (const r of recipients) {
-          sendBookSelectedEmail(r.email, book.title, book.author, updatedMeet?.selectedDate || null, req.params.id as string, r.locale)
+          sendBookSelectedEmail(r.email, book.title, book.author, updatedMeet?.selectedDate || null, meetId, r.locale)
             .catch(err => console.error('Failed to send book selected notification to', r.email, err));
         }
       }
     }
 
-    res.json({ phase });
+    res.json({ phase: result.phase });
   } catch (err) {
     next(err);
   }
@@ -547,6 +553,9 @@ meetRoutes.post('/import', requireAdmin, (req: Request, res: Response, next: Nex
   try {
     const { meets: rows } = req.body as { meets: { sequence: number; host: string; book: string }[] };
     if (!rows || !Array.isArray(rows)) throw new AppError(400, 'meets array is required');
+    if (rows.length > 500) {
+      throw new AppError(400, 'Maximum 500 rows per import');
+    }
 
     const imported: string[] = [];
     const errors: { row: number; error: string }[] = [];
@@ -751,6 +760,9 @@ meetRoutes.post('/:id/candidates/select', (req: Request, res: Response, next: Ne
         totalPoints: pointsByCandidate.get(c.id) || 0,
       }));
 
+      if (candidatePoints.length === 0) {
+        throw new AppError(400, 'No candidates to select from');
+      }
       const maxPoints = Math.max(...candidatePoints.map(c => c.totalPoints));
       const topCandidates = candidatePoints.filter(c => c.totalPoints === maxPoints);
 
@@ -1097,6 +1109,17 @@ meetRoutes.post('/:id/top5', (req: Request, res: Response, next: NextFunction) =
 
     const { entries } = req.body as { entries: { bookId: string; rank: number }[] };
     if (!entries || !Array.isArray(entries)) throw new AppError(400, 'entries array is required');
+
+    // Validate no duplicate ranks
+    const ranks = entries.map(e => e.rank);
+    if (new Set(ranks).size !== ranks.length) {
+      throw new AppError(400, 'Duplicate ranks are not allowed');
+    }
+    // Validate no duplicate bookIds
+    const bookIds = entries.map(e => e.bookId);
+    if (new Set(bookIds).size !== bookIds.length) {
+      throw new AppError(400, 'Duplicate books are not allowed');
+    }
 
     // Validate: only books that were selectedBook in completed meets
     const completedMeets = db.select({ selectedBookId: schema.meets.selectedBookId })
