@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { rateLimit } from 'express-rate-limit';
 import path from 'path';
-import { seedAdmin } from './services/auth';
+import { seedAdmin, initDummyHash } from './services/auth';
 import { authRoutes } from './routes/auth';
 import { userRoutes } from './routes/users';
 import { bookRoutes } from './routes/books';
@@ -81,6 +81,7 @@ app.use(errorHandler);
 // Initialize
 async function start() {
   initializeDatabase(sqlite);
+  await initDummyHash();
   await seedAdmin();
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Reading Circle server running on port ${PORT}`);
