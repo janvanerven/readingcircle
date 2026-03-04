@@ -59,10 +59,10 @@ export function Layout() {
             </nav>
 
             <div className="hidden md:flex items-center gap-2">
-              <span className="text-sm text-brown-light">
+              <span className="text-sm text-brown-light inline-flex items-center gap-1">
                 {user?.username}
                 {user?.isAdmin && (
-                  <span title={t('common.admin')}><Shield className="w-3.5 h-3.5 ml-1 text-burgundy" /></span>
+                  <span title={t('common.admin')}><Shield className="w-3.5 h-3.5 text-burgundy" /></span>
                 )}
               </span>
               <NavLink
@@ -113,10 +113,10 @@ export function Layout() {
                 </NavLink>
               ))}
               <div className="border-t border-warm-gray pt-3 mt-3">
-                <div className="px-4 py-2 text-sm text-brown-light">
+                <div className="px-4 py-2 text-sm text-brown-light inline-flex items-center gap-1 flex-wrap">
                   {t('nav.signedInAs')} <strong>{user?.username}</strong>
                   {user?.isAdmin && (
-                    <span title={t('common.admin')}><Shield className="w-3.5 h-3.5 ml-1 text-burgundy" /></span>
+                    <span title={t('common.admin')}><Shield className="w-3.5 h-3.5 text-burgundy" /></span>
                   )}
                 </div>
                 <NavLink

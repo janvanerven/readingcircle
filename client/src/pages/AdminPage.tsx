@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
-import { Shield, ShieldOff, Download, Upload, X, AlertCircle, CheckCircle, Trash2, UserPlus, Mail, Users } from 'lucide-react';
+import { Shield, ShieldOff, Download, Upload, X, AlertCircle, CheckCircle, Trash2, UserPlus, Mail, Users, Image } from 'lucide-react';
 import { BOOK_TYPES } from '@readingcircle/shared';
 import type { UserResponse, InvitationResponse } from '@readingcircle/shared';
 import { formatDate } from '@/lib/utils';
@@ -119,6 +119,10 @@ export function AdminPage() {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [fileError, setFileError] = useState('');
+
+  // Cover fetch state
+  const [fetchingCovers, setFetchingCovers] = useState(false);
+  const [coverResult, setCoverResult] = useState<{ total: number; updated: number } | null>(null);
 
   // Meets import state
   const meetFileInputRef = useRef<HTMLInputElement>(null);
@@ -551,6 +555,39 @@ export function AdminPage() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* Fetch Book Covers Section */}
+      <div className="bg-white rounded-xl border border-warm-gray p-6 space-y-4">
+        <h2 className="font-serif font-semibold text-brown text-lg">{t('admin.fetchCovers')}</h2>
+        <p className="text-sm text-brown-light">{t('admin.fetchCoversDesc')}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={async () => {
+              setFetchingCovers(true);
+              setCoverResult(null);
+              try {
+                const data = await api<{ total: number; updated: number }>('/books/backfill-covers', { method: 'POST' });
+                setCoverResult(data);
+              } catch (err: unknown) {
+                setCoverResult(null);
+                alert(err instanceof Error ? err.message : 'Failed');
+              } finally {
+                setFetchingCovers(false);
+              }
+            }}
+            disabled={fetchingCovers}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-burgundy hover:bg-burgundy-light text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
+          >
+            <Image className="w-4 h-4" />
+            {fetchingCovers ? t('admin.fetchingCovers') : t('admin.fetchCovers')}
+          </button>
+          {coverResult && (
+            <span className="text-sm text-sage-dark font-medium">
+              {t('admin.coversResult', { updated: coverResult.updated, total: coverResult.total })}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Member Management Section */}
