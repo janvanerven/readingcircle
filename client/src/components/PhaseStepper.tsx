@@ -147,7 +147,7 @@ export function PhaseStepper({
                     i < currentIndex
                       ? 'bg-sage'
                       : i === currentIndex
-                        ? 'border-t-2 border-dashed border-warm-gray'
+                        ? 'border-t-2 border-dashed border-burgundy/40'
                         : 'border-t-2 border-dashed border-warm-gray'
                   }`}
                 />
