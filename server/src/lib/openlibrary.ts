@@ -7,7 +7,7 @@ export async function fetchCoverUrl(title: string, author: string): Promise<stri
     const params = new URLSearchParams({
       title,
       author,
-      limit: '1',
+      limit: '10',
       fields: 'cover_i',
     });
     const res = await fetch(`https://openlibrary.org/search.json?${params}`, {
@@ -16,7 +16,7 @@ export async function fetchCoverUrl(title: string, author: string): Promise<stri
     if (!res.ok) return null;
 
     const data = await res.json() as { docs?: { cover_i?: number }[] };
-    const coverId = data?.docs?.[0]?.cover_i;
+    const coverId = data?.docs?.find(d => d.cover_i)?.cover_i;
     if (!coverId) return null;
 
     return `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`;
